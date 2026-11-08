@@ -1,0 +1,41 @@
+name: Bug Report
+description: Create a report to help us fix a bug
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: Thank you for reporting an issue with LunaCopy!
+  - type: input
+    id: version
+    attributes:
+      label: LunaCopy Version
+      description: e.g. 1.1.0 (or commit hash)
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Windows Version
+      description: e.g. Windows 11 23H2 (Build 22631) or Windows 10
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: Describe the Bug
+      description: A clear description of what happened.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: 1. In application 'X', select text with mouse...
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Log Output
+      description: Paste any lines from `%AppData%\LunaCopy\LunaCopy.log` or the application folder.
+      render: shell

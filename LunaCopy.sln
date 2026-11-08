@@ -1,0 +1,33 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LunaCopy", "LunaCopy.csproj", "{7E1F11D2-0921-4EA9-8CCA-576BDEB36428}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{A89BA4EE-8DC3-4E58-994D-522A8DA56F69}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LunaCopy.Tests", "tests\LunaCopy.Tests\LunaCopy.Tests.csproj", "{44FF8015-A328-4303-A4E2-B3643C7A869A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{7E1F11D2-0921-4EA9-8CCA-576BDEB36428}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7E1F11D2-0921-4EA9-8CCA-576BDEB36428}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7E1F11D2-0921-4EA9-8CCA-576BDEB36428}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7E1F11D2-0921-4EA9-8CCA-576BDEB36428}.Release|Any CPU.Build.0 = Release|Any CPU
+		{44FF8015-A328-4303-A4E2-B3643C7A869A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{44FF8015-A328-4303-A4E2-B3643C7A869A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{44FF8015-A328-4303-A4E2-B3643C7A869A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{44FF8015-A328-4303-A4E2-B3643C7A869A}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{44FF8015-A328-4303-A4E2-B3643C7A869A} = {A89BA4EE-8DC3-4E58-994D-522A8DA56F69}
+	EndGlobalSection
+EndGlobal

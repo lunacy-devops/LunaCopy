@@ -1,0 +1,156 @@
+<Window x:Class="LunaCopy.Windows.TrayMenuWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        SizeToContent="WidthAndHeight"
+        ResizeMode="NoResize"
+        Deactivated="Window_Deactivated">
+    <Window.Resources>
+        <Style x:Key="TrayMenuItemButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Padding" Value="10,7"/>
+            <Setter Property="Margin" Value="0,1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontFamily" Value="Segoe UI Variable Text, Segoe UI"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="ItemBorder"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="5"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ItemBorder" Property="Background" Value="#2D2D38"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ItemBorder" Property="Background" Value="#383846"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Border Background="#1E1E24"
+            BorderBrush="#32323D"
+            BorderThickness="1"
+            CornerRadius="8"
+            Padding="5"
+            Margin="8"
+            MinWidth="220">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="14" ShadowDepth="4" Opacity="0.55" Color="Black"/>
+        </Border.Effect>
+
+        <StackPanel>
+            <!-- 1. Включено -->
+            <Button Style="{StaticResource TrayMenuItemButtonStyle}"
+                    Click="ToggleEnabled_Click">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="24"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock x:Name="EnabledCheckText"
+                               Grid.Column="0"
+                               Text="✓"
+                               Foreground="#3B82F6"
+                               FontWeight="Bold"
+                               FontSize="13.5"
+                               VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="1"
+                               Text="Включено"
+                               Foreground="#FFFFFF"
+                               VerticalAlignment="Center"/>
+                </Grid>
+            </Button>
+
+            <!-- 2. Имя последнего активного процесса -->
+            <Button x:Name="LastProcessButton"
+                    Style="{StaticResource TrayMenuItemButtonStyle}"
+                    Click="ToggleProcessExclusion_Click">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="24"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock x:Name="ProcessCheckText"
+                               Grid.Column="0"
+                               Text="✓"
+                               Foreground="#3B82F6"
+                               FontWeight="Bold"
+                               FontSize="13.5"
+                               VerticalAlignment="Center"/>
+                    <TextBlock x:Name="ProcessNameText"
+                               Grid.Column="1"
+                               Text="notepad.exe"
+                               Foreground="#FFFFFF"
+                               TextTrimming="CharacterEllipsis"
+                               MaxWidth="185"
+                               VerticalAlignment="Center"/>
+                </Grid>
+            </Button>
+
+            <!-- 3. Настройки -->
+            <Button Style="{StaticResource TrayMenuItemButtonStyle}"
+                    Click="OpenSettings_Click">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="24"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0"
+                               Text="⚙"
+                               Foreground="#A0A0B0"
+                               FontSize="13"
+                               VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="1"
+                               Text="Настройки"
+                               Foreground="#FFFFFF"
+                               VerticalAlignment="Center"/>
+                </Grid>
+            </Button>
+
+            <!-- 4. Разделитель -->
+            <Border Height="1"
+                    Background="#2E2E38"
+                    Margin="6,4"/>
+
+            <!-- 5. Выход -->
+            <Button Style="{StaticResource TrayMenuItemButtonStyle}"
+                    Click="Exit_Click">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="24"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0"
+                               Text="✕"
+                               Foreground="#EF4444"
+                               FontSize="12"
+                               VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="1"
+                               Text="Выход"
+                               Foreground="#FFFFFF"
+                               VerticalAlignment="Center"/>
+                </Grid>
+            </Button>
+        </StackPanel>
+    </Border>
+</Window>

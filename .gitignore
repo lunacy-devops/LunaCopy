@@ -1,0 +1,24 @@
+## Build & Output
+[Bb]in/
+[Oo]bj/
+[Pp]ublish/
+[Oo]ut/
+
+## Visual Studio / Rider / VS Code
+.vs/
+.idea/
+.vscode/
+*.user
+*.userosscache
+*.suo
+*.sln.docstates
+
+## Runtime Config
+config.json
+
+## OS Temporary Files
+Thumbs.db
+Desktop.ini
+*.tmp
+*.bak
+*.log
