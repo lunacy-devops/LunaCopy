@@ -14,7 +14,6 @@ namespace LunaCopy;
 public partial class App : Application
 {
     private Mutex? _singleInstanceMutex;
-    private Mutex? _legacyMutex;
     private NotifyIcon? _notifyIcon;
     private Icon? _activeIcon;
     private Icon? _inactiveIcon;
@@ -31,20 +30,6 @@ public partial class App : Application
         SetupExceptionHandling();
 
         _singleInstanceMutex = new Mutex(true, @"Local\LunaCopy_SingleInstance_Mutex", out bool isNewInstance);
-        _legacyMutex = new Mutex(true, @"Local\AutoCopy_SingleInstance_Mutex", out bool isLegacyFree);
-
-        if (!isLegacyFree)
-        {
-            Logger.Warn("A running instance of legacy AutoCopy was detected.");
-            MessageBox.Show(
-                "Обнаружен работающий процесс предыдущей версии (AutoCopy).\nПожалуйста, закройте его в системном трее перед запуском LunaCopy.",
-                "LunaCopy — Конфликт версий",
-                MessageBoxButton.OK,
-                MessageBoxImage.Warning);
-            Shutdown();
-            return;
-        }
-
         if (!isNewInstance)
         {
             Logger.Warn("Another instance of LunaCopy is already running.");
@@ -57,15 +42,30 @@ public partial class App : Application
             return;
         }
 
+        // Check if legacy AutoCopy process is still running without claiming ownership of its mutex
+        if (Mutex.TryOpenExisting(@"Local\AutoCopy_SingleInstance_Mutex", out var legacyMutex))
+        {
+            legacyMutex.Dispose();
+            Logger.Warn("A running instance of legacy AutoCopy was detected.");
+            MessageBox.Show(
+                "Обнаружен работающий процесс предыдущей версии (AutoCopy).\nПожалуйста, закройте его в системном трее перед запуском LunaCopy.",
+                "LunaCopy — Конфликт версий",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            Shutdown();
+            return;
+        }
+
         Logger.Info("LunaCopy starting up...");
 
-        // Background warmup of UI Automation subsystem for instant cold-start response
+        // Background warmup of UI Automation subsystem and client focus for instant cold-start response
         Task.Run(() =>
         {
             try
             {
                 _ = AutomationElement.RootElement;
-                Logger.Info("UI Automation subsystem warmed up successfully.");
+                _ = AutomationElement.FocusedElement;
+                Logger.Info("UI Automation subsystem and focus warmed up successfully.");
             }
             catch (Exception ex)
             {
@@ -221,8 +221,5 @@ public partial class App : Application
 
         _singleInstanceMutex?.Dispose();
         _singleInstanceMutex = null;
-
-        _legacyMutex?.Dispose();
-        _legacyMutex = null;
     }
 }

@@ -33,15 +33,20 @@ public static class ConfigService
 
     private static string? _customConfigPathForTesting;
 
-    public static void SetCustomConfigPathForTesting(string? path)
+    internal static void SetCustomConfigPathForTesting(string? path)
     {
         lock (SyncLock)
         {
             _customConfigPathForTesting = path;
-            if (path != null)
-            {
-                Current = new AppConfig();
-            }
+            Current = new AppConfig();
+        }
+    }
+
+    internal static void ResetCurrentForTesting()
+    {
+        lock (SyncLock)
+        {
+            Current = new AppConfig();
         }
     }
 
@@ -161,11 +166,18 @@ public static class ConfigService
                 }
             }
 
-            // If the legacy app was registered for startup, carry it over to LunaCopy
+            // If the legacy app was registered for startup, carry it over to LunaCopy registry key
+            // Note: do NOT call SetStartupRegistry(true) here, as that would call SaveInternal()
+            // before the config file is read by Load(), which would overwrite settings with defaults!
             if (hadLegacyRunKey)
             {
-                SetStartupRegistry(true);
-                Logger.Info("Migrated startup registry registration from AutoCopy to LunaCopy.");
+                using var key = Registry.CurrentUser.OpenSubKey(RegistryRunKey, true);
+                string? exePath = Environment.ProcessPath;
+                if (key != null && !string.IsNullOrEmpty(exePath))
+                {
+                    key.SetValue(AppName, $"\"{exePath}\"");
+                    Logger.Info("Migrated startup registry registration from AutoCopy to LunaCopy.");
+                }
             }
         }
         catch (Exception ex)

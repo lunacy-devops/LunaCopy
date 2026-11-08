@@ -52,15 +52,15 @@ public partial class TrayMenuWindow : Window
     {
         RefreshMenuState();
 
+        IntPtr hwnd = new WindowInteropHelper(this).EnsureHandle();
+        UpdateLayout();
+        PositionMenuNearCursor();
+
         if (!IsVisible)
         {
             Show();
         }
 
-        UpdateLayout();
-        PositionMenuNearCursor();
-
-        IntPtr hwnd = new WindowInteropHelper(this).Handle;
         NativeMethods.SetForegroundWindow(hwnd);
         Activate();
         Focus();

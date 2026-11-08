@@ -15,6 +15,7 @@ public sealed class MouseHookService : IDisposable
     private readonly NativeMethods.WinEventDelegate _winEventProc;
 
     private readonly ManualResetEventSlim _initEvent = new(false);
+    private readonly ManualResetEventSlim _threadExitedEvent = new(true);
     private readonly object _stateLock = new();
 
     private bool _isLeftButtonDown;
@@ -29,6 +30,7 @@ public sealed class MouseHookService : IDisposable
     private readonly System.Threading.Timer _watchdogTimer;
     private DateTime _lastHookHeartbeat = DateTime.UtcNow;
     private DateTime _lastProactiveReinstall = DateTime.UtcNow;
+    private DateTime _lastRestartTime = DateTime.MinValue;
     private NativeMethods.POINT _lastWatchdogPos;
     private bool _installErrorLogged;
 
@@ -68,16 +70,7 @@ public sealed class MouseHookService : IDisposable
         {
             if (_hookThread != null && _hookThread.IsAlive) return;
 
-            _initEvent.Reset();
-            _hookThread = new Thread(HookThreadProc)
-            {
-                IsBackground = true,
-                Name = "LunaCopy_MouseHookThread"
-            };
-            _hookThread.SetApartmentState(ApartmentState.STA);
-            _hookThread.Start();
-
-            _initEvent.Wait(2000);
+            StartHookThreadInternal();
 
             InstallWinEventHook();
             UpdateForegroundProcessFromHandle(NativeMethods.GetForegroundWindow());
@@ -90,45 +83,67 @@ public sealed class MouseHookService : IDisposable
         }
     }
 
+    private void StartHookThreadInternal()
+    {
+        _initEvent.Reset();
+        _threadExitedEvent.Reset();
+
+        _hookThread = new Thread(HookThreadProc)
+        {
+            IsBackground = true,
+            Name = "LunaCopy_MouseHookThread"
+        };
+        _hookThread.SetApartmentState(ApartmentState.STA);
+        _hookThread.Start();
+
+        _initEvent.Wait(2000);
+    }
+
     private void HookThreadProc()
     {
         _hookThreadId = NativeMethods.GetCurrentThreadId();
 
-        using (Process curProcess = Process.GetCurrentProcess())
-        using (ProcessModule? curModule = curProcess.MainModule)
+        try
         {
-            IntPtr moduleHandle = NativeMethods.GetModuleHandle(curModule?.ModuleName);
-            _mouseHookId = NativeMethods.SetWindowsHookEx(NativeMethods.WH_MOUSE_LL, _mouseProc, moduleHandle, 0);
-
-            if (_mouseHookId == IntPtr.Zero)
+            using (Process curProcess = Process.GetCurrentProcess())
+            using (ProcessModule? curModule = curProcess.MainModule)
             {
-                if (!_installErrorLogged)
+                IntPtr moduleHandle = NativeMethods.GetModuleHandle(curModule?.ModuleName);
+                _mouseHookId = NativeMethods.SetWindowsHookEx(NativeMethods.WH_MOUSE_LL, _mouseProc, moduleHandle, 0);
+
+                if (_mouseHookId == IntPtr.Zero)
                 {
-                    int err = Marshal.GetLastWin32Error();
-                    Logger.Error($"Failed to install SetWindowsHookEx on dedicated thread. Win32Error: {err}");
-                    _installErrorLogged = true;
+                    if (!_installErrorLogged)
+                    {
+                        int err = Marshal.GetLastWin32Error();
+                        Logger.Error($"Failed to install SetWindowsHookEx on dedicated thread. Win32Error: {err}");
+                        _installErrorLogged = true;
+                    }
+                }
+                else
+                {
+                    _installErrorLogged = false;
+                    Logger.Info("Low-level mouse hook installed on dedicated background thread.");
                 }
             }
-            else
+
+            _initEvent.Set();
+
+            while (NativeMethods.GetMessage(out var msg, IntPtr.Zero, 0, 0) > 0)
             {
-                _installErrorLogged = false;
-                Logger.Info("Low-level mouse hook installed on dedicated background thread.");
+                NativeMethods.TranslateMessage(ref msg);
+                NativeMethods.DispatchMessage(ref msg);
             }
         }
-
-        _initEvent.Set();
-
-        while (NativeMethods.GetMessage(out var msg, IntPtr.Zero, 0, 0) > 0)
+        finally
         {
-            NativeMethods.TranslateMessage(ref msg);
-            NativeMethods.DispatchMessage(ref msg);
-        }
-
-        if (_mouseHookId != IntPtr.Zero)
-        {
-            NativeMethods.UnhookWindowsHookEx(_mouseHookId);
-            _mouseHookId = IntPtr.Zero;
-            Logger.Info("Mouse hook uninstalled on dedicated thread exit.");
+            if (_mouseHookId != IntPtr.Zero)
+            {
+                NativeMethods.UnhookWindowsHookEx(_mouseHookId);
+                _mouseHookId = IntPtr.Zero;
+                Logger.Info("Mouse hook uninstalled on dedicated thread exit.");
+            }
+            _threadExitedEvent.Set();
         }
     }
 
@@ -184,7 +199,27 @@ public sealed class MouseHookService : IDisposable
         }
         catch
         {
-            // Process may have terminated or access denied
+            // Process may be elevated (UIPI) or terminated
+        }
+    }
+
+    private bool IsForegroundProcessElevated(IntPtr hWnd)
+    {
+        if (hWnd == IntPtr.Zero) return false;
+        try
+        {
+            NativeMethods.GetWindowThreadProcessId(hWnd, out uint pid);
+            if (pid == 0) return false;
+
+            using var proc = Process.GetProcessById((int)pid);
+            // If we cannot query modules, process is likely elevated
+            _ = proc.MainModule;
+            return false;
+        }
+        catch
+        {
+            // Access denied indicates elevated process
+            return true;
         }
     }
 
@@ -202,6 +237,12 @@ public sealed class MouseHookService : IDisposable
                     return;
                 }
 
+                // Rate-limit restarts (cooldown at least 2 minutes)
+                if ((DateTime.UtcNow - _lastRestartTime) < TimeSpan.FromMinutes(2))
+                {
+                    return;
+                }
+
                 // 2. Silent unhook detection: cursor moved across the screen but hook received no events
                 if (NativeMethods.GetCursorPos(out var currentPos))
                 {
@@ -209,9 +250,18 @@ public sealed class MouseHookService : IDisposable
                     int dy = Math.Abs(currentPos.Y - _lastWatchdogPos.Y);
                     _lastWatchdogPos = currentPos;
 
-                    if ((dx > 10 || dy > 10) && (DateTime.UtcNow - _lastHookHeartbeat) > TimeSpan.FromSeconds(30))
+                    if ((dx > 15 || dy > 15) && (DateTime.UtcNow - _lastHookHeartbeat) > TimeSpan.FromSeconds(30))
                     {
-                        Logger.Warn("Watchdog: cursor moved but low-level hook heartbeat timed out. Windows silently removed hook. Reinstalling...");
+                        // Check if user is currently interacting with an elevated window (UIPI)
+                        IntPtr fg = NativeMethods.GetForegroundWindow();
+                        if (IsForegroundProcessElevated(fg))
+                        {
+                            // In elevated window, unprivileged LL hook naturally receives no messages. Do not thrash!
+                            _lastHookHeartbeat = DateTime.UtcNow;
+                            return;
+                        }
+
+                        Logger.Warn("Watchdog: cursor moved in non-elevated window but low-level hook heartbeat timed out. Windows silently removed hook. Reinstalling...");
                         RestartHookThread();
                         return;
                     }
@@ -233,16 +283,9 @@ public sealed class MouseHookService : IDisposable
 
     private void RestartHookThread()
     {
+        _lastRestartTime = DateTime.UtcNow;
         StopHookThread();
-        _initEvent.Reset();
-        _hookThread = new Thread(HookThreadProc)
-        {
-            IsBackground = true,
-            Name = "LunaCopy_MouseHookThread"
-        };
-        _hookThread.SetApartmentState(ApartmentState.STA);
-        _hookThread.Start();
-        _initEvent.Wait(2000);
+        StartHookThreadInternal();
         _lastHookHeartbeat = DateTime.UtcNow;
     }
 
@@ -253,6 +296,9 @@ public sealed class MouseHookService : IDisposable
             NativeMethods.PostThreadMessage(_hookThreadId, NativeMethods.WM_QUIT, IntPtr.Zero, IntPtr.Zero);
             _hookThreadId = 0;
         }
+
+        // Wait up to 2 seconds for clean unhook inside thread proc
+        _threadExitedEvent.Wait(2000);
 
         if (_hookThread != null && _hookThread.IsAlive)
         {
@@ -306,12 +352,14 @@ public sealed class MouseHookService : IDisposable
         _startedWithModifier = NativeMethods.IsModifierPressed();
 
         uint doubleClickTime = NativeMethods.GetDoubleClickTime();
-        if (doubleClickTime == 0) doubleClickTime = 500;
+        if (doubleClickTime == 0) doubleClickTime = SelectionGestureDetector.DefaultDoubleClickTimeMs;
 
-        uint timeDiff = unchecked(hookStruct.time - _lastClickUpTime);
-        double distFromLastClick = GetDistance(hookStruct.pt, _lastClickUpPoint);
-
-        _isDoubleClickSequence = timeDiff <= doubleClickTime && distFromLastClick <= 5.0;
+        _isDoubleClickSequence = SelectionGestureDetector.IsDoubleClick(
+            _lastClickUpTime,
+            hookStruct.time,
+            _lastClickUpPoint,
+            hookStruct.pt,
+            doubleClickTime);
     }
 
     private void OnLeftButtonUp(NativeMethods.MSLLHOOKSTRUCT hookStruct)
@@ -321,9 +369,9 @@ public sealed class MouseHookService : IDisposable
 
         var upPoint = hookStruct.pt;
         var downPoint = _downPoint;
-        double dragDistance = GetDistance(downPoint, upPoint);
-        bool isDragSelect = dragDistance > 5.0;
-        bool isDoubleClick = _isDoubleClickSequence && dragDistance <= 5.0;
+
+        bool isDragSelect = SelectionGestureDetector.IsDragSelection(downPoint, upPoint);
+        bool isDoubleClick = _isDoubleClickSequence && !isDragSelect;
 
         _lastClickUpTime = hookStruct.time;
         _lastClickUpPoint = upPoint;
@@ -381,18 +429,12 @@ public sealed class MouseHookService : IDisposable
         });
     }
 
-    private static double GetDistance(NativeMethods.POINT a, NativeMethods.POINT b)
-    {
-        double dx = a.X - b.X;
-        double dy = a.Y - b.Y;
-        return Math.Sqrt(dx * dx + dy * dy);
-    }
-
     public void Dispose()
     {
         _copyCts?.Cancel();
         Stop();
         _watchdogTimer.Dispose();
         _initEvent.Dispose();
+        _threadExitedEvent.Dispose();
     }
 }

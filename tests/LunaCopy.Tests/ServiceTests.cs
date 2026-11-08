@@ -18,6 +18,7 @@ public class ServiceTests : IDisposable
     public void Dispose()
     {
         ConfigService.SetCustomConfigPathForTesting(null);
+        ConfigService.ResetCurrentForTesting();
         try
         {
             if (File.Exists(_tempConfigFile))
@@ -103,23 +104,35 @@ public class ServiceTests : IDisposable
     [InlineData(0, 0, 4, 4, 5.656, true)]    // > 5px -> true
     [InlineData(100, 100, 101, 102, 2.236, false)]
     [InlineData(10, 10, 50, 60, 64.03, true)]
-    public void DragDistance_CalculatesCorrectly(int x1, int y1, int x2, int y2, double expectedDist, bool exceedsThreshold)
+    public void SelectionGestureDetector_IsDragSelection_EvaluatesProductionLogic(int x1, int y1, int x2, int y2, double expectedDist, bool exceedsThreshold)
     {
-        double dx = x2 - x1;
-        double dy = y2 - y1;
-        double dist = Math.Sqrt(dx * dx + dy * dy);
+        var pt1 = new NativeMethods.POINT { X = x1, Y = y1 };
+        var pt2 = new NativeMethods.POINT { X = x2, Y = y2 };
 
-        Assert.Equal(expectedDist, dist, precision: 2);
-        Assert.Equal(exceedsThreshold, dist > 5.0);
+        double distance = SelectionGestureDetector.GetDistance(pt1, pt2);
+        bool isDrag = SelectionGestureDetector.IsDragSelection(pt1, pt2);
+
+        Assert.Equal(expectedDist, distance, precision: 2);
+        Assert.Equal(exceedsThreshold, isDrag);
     }
 
     [Theory]
-    [InlineData(1000, 1200, 500, true)]   // 200ms diff <= 500ms -> valid double click timing
+    [InlineData(1000, 1200, 500, true)]   // 200ms diff <= 500ms and 0 distance -> valid double click
     [InlineData(1000, 1600, 500, false)]  // 600ms diff > 500ms -> too slow for double click
-    public void DoubleClickTiming_EvaluatesCorrectly(uint downTime, uint nextClickTime, uint doubleClickMax, bool isSequence)
+    public void SelectionGestureDetector_IsDoubleClick_EvaluatesProductionTiming(uint downTime, uint nextClickTime, uint doubleClickMax, bool isSequence)
     {
-        uint diff = unchecked(nextClickTime - downTime);
-        bool valid = diff <= doubleClickMax;
-        Assert.Equal(isSequence, valid);
+        var pt = new NativeMethods.POINT { X = 100, Y = 100 };
+        bool result = SelectionGestureDetector.IsDoubleClick(downTime, nextClickTime, pt, pt, doubleClickMax);
+        Assert.Equal(isSequence, result);
+    }
+
+    [Fact]
+    public void SelectionGestureDetector_IsDoubleClick_RejectsMovedClicks()
+    {
+        var pt1 = new NativeMethods.POINT { X = 100, Y = 100 };
+        var pt2 = new NativeMethods.POINT { X = 110, Y = 110 }; // Distance ~14px > 5px
+
+        bool result = SelectionGestureDetector.IsDoubleClick(1000, 1150, pt1, pt2, 500);
+        Assert.False(result);
     }
 }
