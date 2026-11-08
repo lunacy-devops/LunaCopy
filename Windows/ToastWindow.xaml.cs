@@ -84,6 +84,9 @@ public partial class ToastWindow : Window
         if (!NativeMethods.GetCursorPos(out var pt))
             return;
 
+        IntPtr hwnd = new WindowInteropHelper(this).Handle;
+        if (hwnd == IntPtr.Zero) return;
+
         IntPtr hMonitor = NativeMethods.MonitorFromPoint(pt, NativeMethods.MONITOR_DEFAULTTONEAREST);
         var mi = new NativeMethods.MONITORINFO { cbSize = Marshal.SizeOf<NativeMethods.MONITORINFO>() };
         bool hasMonitorInfo = NativeMethods.GetMonitorInfo(hMonitor, ref mi);
@@ -92,32 +95,33 @@ public partial class ToastWindow : Window
         if (scaleX <= 0) scaleX = 1.0;
         if (scaleY <= 0) scaleY = 1.0;
 
-        double cursorDipX = pt.X / scaleX;
-        double cursorDipY = pt.Y / scaleY;
+        double widthDips = ActualWidth > 0 ? ActualWidth : 120;
+        double heightDips = ActualHeight > 0 ? ActualHeight : 36;
 
-        double width = ActualWidth > 0 ? ActualWidth : 120;
-        double height = ActualHeight > 0 ? ActualHeight : 36;
+        int widthPx = (int)Math.Round(widthDips * scaleX);
+        int heightPx = (int)Math.Round(heightDips * scaleY);
 
-        double targetLeft = cursorDipX - (width / 2.0);
-        double targetTop = cursorDipY - height - 18.0;
+        int targetX = pt.X - (widthPx / 2);
+        int targetY = pt.Y - heightPx - (int)Math.Round(18 * scaleY);
 
         if (hasMonitorInfo)
         {
-            double workLeft = mi.rcWork.Left / scaleX;
-            double workTop = mi.rcWork.Top / scaleY;
-            double workRight = mi.rcWork.Right / scaleX;
-            double workBottom = mi.rcWork.Bottom / scaleY;
-
-            if (targetTop < workTop + 4)
+            if (targetY < mi.rcWork.Top + 4)
             {
-                targetTop = cursorDipY + 22.0;
+                targetY = pt.Y + (int)Math.Round(22 * scaleY);
             }
 
-            if (targetLeft < workLeft + 4) targetLeft = workLeft + 4;
-            if (targetLeft + width > workRight - 4) targetLeft = workRight - width - 4;
+            if (targetX < mi.rcWork.Left + 4) targetX = mi.rcWork.Left + 4;
+            if (targetX + widthPx > mi.rcWork.Right - 4) targetX = mi.rcWork.Right - widthPx - 4;
         }
 
-        Left = targetLeft;
-        Top = targetTop;
+        NativeMethods.SetWindowPos(
+            hwnd,
+            IntPtr.Zero,
+            targetX,
+            targetY,
+            0,
+            0,
+            NativeMethods.SWP_NOSIZE | NativeMethods.SWP_NOZORDER | NativeMethods.SWP_NOACTIVATE | NativeMethods.SWP_SHOWWINDOW);
     }
 }

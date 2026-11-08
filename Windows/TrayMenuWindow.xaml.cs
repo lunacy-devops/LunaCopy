@@ -92,6 +92,9 @@ public partial class TrayMenuWindow : Window
         if (!NativeMethods.GetCursorPos(out var pt))
             return;
 
+        IntPtr hwnd = new WindowInteropHelper(this).Handle;
+        if (hwnd == IntPtr.Zero) return;
+
         IntPtr hMonitor = NativeMethods.MonitorFromPoint(pt, NativeMethods.MONITOR_DEFAULTTONEAREST);
         var mi = new NativeMethods.MONITORINFO { cbSize = Marshal.SizeOf<NativeMethods.MONITORINFO>() };
         bool hasMonitorInfo = NativeMethods.GetMonitorInfo(hMonitor, ref mi);
@@ -100,36 +103,32 @@ public partial class TrayMenuWindow : Window
         if (scaleX <= 0) scaleX = 1.0;
         if (scaleY <= 0) scaleY = 1.0;
 
-        double cursorX = pt.X / scaleX;
-        double cursorY = pt.Y / scaleY;
+        double menuWDips = ActualWidth > 0 ? ActualWidth : 236;
+        double menuHDips = ActualHeight > 0 ? ActualHeight : 165;
 
-        double menuW = ActualWidth > 0 ? ActualWidth : 236;
-        double menuH = ActualHeight > 0 ? ActualHeight : 165;
+        int menuWPx = (int)Math.Round(menuWDips * scaleX);
+        int menuHPx = (int)Math.Round(menuHDips * scaleY);
 
-        double workLeft = SystemParameters.WorkArea.Left;
-        double workTop = SystemParameters.WorkArea.Top;
-        double workRight = SystemParameters.WorkArea.Right;
-        double workBottom = SystemParameters.WorkArea.Bottom;
+        int targetX = pt.X - menuWPx + (int)Math.Round(12 * scaleX);
+        int targetY = pt.Y - menuHPx - (int)Math.Round(4 * scaleY);
 
         if (hasMonitorInfo)
         {
-            workLeft = mi.rcWork.Left / scaleX;
-            workTop = mi.rcWork.Top / scaleY;
-            workRight = mi.rcWork.Right / scaleX;
-            workBottom = mi.rcWork.Bottom / scaleY;
+            if (targetX < mi.rcWork.Left + 4) targetX = mi.rcWork.Left + 4;
+            if (targetX + menuWPx > mi.rcWork.Right - 4) targetX = mi.rcWork.Right - menuWPx - 4;
+
+            if (targetY < mi.rcWork.Top + 4) targetY = pt.Y + (int)Math.Round(8 * scaleY);
+            if (targetY + menuHPx > mi.rcWork.Bottom - 4) targetY = mi.rcWork.Bottom - menuHPx - 4;
         }
 
-        double left = cursorX - menuW + 12;
-        double top = cursorY - menuH - 4;
-
-        if (left < workLeft + 4) left = workLeft + 4;
-        if (left + menuW > workRight - 4) left = workRight - menuW - 4;
-
-        if (top < workTop + 4) top = cursorY + 8;
-        if (top + menuH > workBottom - 4) top = workBottom - menuH - 4;
-
-        Left = left;
-        Top = top;
+        NativeMethods.SetWindowPos(
+            hwnd,
+            IntPtr.Zero,
+            targetX,
+            targetY,
+            0,
+            0,
+            NativeMethods.SWP_NOSIZE | NativeMethods.SWP_NOZORDER | NativeMethods.SWP_SHOWWINDOW);
     }
 
     private void ToggleEnabled_Click(object sender, RoutedEventArgs e)

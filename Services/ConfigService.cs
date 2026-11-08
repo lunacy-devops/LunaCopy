@@ -31,10 +31,28 @@ public static class ConfigService
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
 
+    private static string? _customConfigPathForTesting;
+
+    public static void SetCustomConfigPathForTesting(string? path)
+    {
+        lock (SyncLock)
+        {
+            _customConfigPathForTesting = path;
+            if (path != null)
+            {
+                Current = new AppConfig();
+            }
+        }
+    }
+
     public static AppConfig Current { get; private set; } = new();
 
     private static string GetPrimaryConfigPath()
     {
+        if (_customConfigPathForTesting != null)
+        {
+            return _customConfigPathForTesting;
+        }
         string baseDir = AppContext.BaseDirectory;
         return Path.Combine(baseDir, "config.json");
     }
@@ -115,12 +133,14 @@ public static class ConfigService
     {
         try
         {
-            // Remove legacy AutoCopy run entry if exists
+            bool hadLegacyRunKey = false;
+            // Check & remove legacy AutoCopy run entry if exists
             using (var key = Registry.CurrentUser.OpenSubKey(RegistryRunKey, true))
             {
                 if (key?.GetValue(LegacyAppName) != null)
                 {
                     key.DeleteValue(LegacyAppName, false);
+                    hadLegacyRunKey = true;
                     Logger.Info("Removed legacy 'AutoCopy' registry entry.");
                 }
             }
@@ -139,6 +159,13 @@ public static class ConfigService
                     File.Copy(oldAppData, newConfig, false);
                     Logger.Info("Migrated legacy config.json from AutoCopy to LunaCopy.");
                 }
+            }
+
+            // If the legacy app was registered for startup, carry it over to LunaCopy
+            if (hadLegacyRunKey)
+            {
+                SetStartupRegistry(true);
+                Logger.Info("Migrated startup registry registration from AutoCopy to LunaCopy.");
             }
         }
         catch (Exception ex)

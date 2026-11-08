@@ -167,8 +167,10 @@ public static class TextExtractorService
         }
 
         // If target supports UIA TextPattern and definitively reported empty selection,
-        // or if UIA timed out/hung, do NOT fall back to blind Ctrl+C!
-        if (status is UiaExtractionStatus.EmptySelection or UiaExtractionStatus.TimedOut)
+        // do NOT fall back to blind Ctrl+C.
+        // If UIA timed out (e.g. cold start in heavy Chromium/Electron app), allow fallback
+        // ONLY if the cursor is firmly verified to be an I-Beam in a non-console window.
+        if (status == UiaExtractionStatus.EmptySelection)
         {
             return false;
         }

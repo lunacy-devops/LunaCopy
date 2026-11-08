@@ -1,6 +1,7 @@
 using System.Drawing;
 using System.Threading;
 using System.Windows;
+using System.Windows.Automation;
 using System.Windows.Forms;
 using System.Windows.Threading;
 using LunaCopy.Services;
@@ -32,9 +33,21 @@ public partial class App : Application
         _singleInstanceMutex = new Mutex(true, @"Local\LunaCopy_SingleInstance_Mutex", out bool isNewInstance);
         _legacyMutex = new Mutex(true, @"Local\AutoCopy_SingleInstance_Mutex", out bool isLegacyFree);
 
-        if (!isNewInstance || !isLegacyFree)
+        if (!isLegacyFree)
         {
-            Logger.Warn("Another instance of LunaCopy (or legacy AutoCopy) is already running.");
+            Logger.Warn("A running instance of legacy AutoCopy was detected.");
+            MessageBox.Show(
+                "Обнаружен работающий процесс предыдущей версии (AutoCopy).\nПожалуйста, закройте его в системном трее перед запуском LunaCopy.",
+                "LunaCopy — Конфликт версий",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            Shutdown();
+            return;
+        }
+
+        if (!isNewInstance)
+        {
+            Logger.Warn("Another instance of LunaCopy is already running.");
             MessageBox.Show(
                 "LunaCopy уже запущен и работает в системном трее возле часов.",
                 "LunaCopy",
@@ -45,6 +58,20 @@ public partial class App : Application
         }
 
         Logger.Info("LunaCopy starting up...");
+
+        // Background warmup of UI Automation subsystem for instant cold-start response
+        Task.Run(() =>
+        {
+            try
+            {
+                _ = AutomationElement.RootElement;
+                Logger.Info("UI Automation subsystem warmed up successfully.");
+            }
+            catch (Exception ex)
+            {
+                Logger.Warn($"UIA warmup notice: {ex.Message}");
+            }
+        });
 
         ConfigService.Load();
 

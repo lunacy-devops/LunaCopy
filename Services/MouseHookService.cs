@@ -28,6 +28,9 @@ public sealed class MouseHookService : IDisposable
     private CancellationTokenSource? _copyCts;
     private readonly System.Threading.Timer _watchdogTimer;
     private DateTime _lastHookHeartbeat = DateTime.UtcNow;
+    private DateTime _lastProactiveReinstall = DateTime.UtcNow;
+    private NativeMethods.POINT _lastWatchdogPos;
+    private bool _installErrorLogged;
 
     private string _cachedForegroundProcess = string.Empty;
     private readonly object _processLock = new();
@@ -74,11 +77,14 @@ public sealed class MouseHookService : IDisposable
             _hookThread.SetApartmentState(ApartmentState.STA);
             _hookThread.Start();
 
-            // Wait up to 2 seconds for hook thread to initialize
             _initEvent.Wait(2000);
 
             InstallWinEventHook();
             UpdateForegroundProcessFromHandle(NativeMethods.GetForegroundWindow());
+
+            _lastHookHeartbeat = DateTime.UtcNow;
+            _lastProactiveReinstall = DateTime.UtcNow;
+            NativeMethods.GetCursorPos(out _lastWatchdogPos);
 
             _watchdogTimer.Change(TimeSpan.FromSeconds(15), TimeSpan.FromSeconds(15));
         }
@@ -96,18 +102,22 @@ public sealed class MouseHookService : IDisposable
 
             if (_mouseHookId == IntPtr.Zero)
             {
-                int err = Marshal.GetLastWin32Error();
-                Logger.Error($"Failed to install SetWindowsHookEx on dedicated thread. Win32Error: {err}");
+                if (!_installErrorLogged)
+                {
+                    int err = Marshal.GetLastWin32Error();
+                    Logger.Error($"Failed to install SetWindowsHookEx on dedicated thread. Win32Error: {err}");
+                    _installErrorLogged = true;
+                }
             }
             else
             {
+                _installErrorLogged = false;
                 Logger.Info("Low-level mouse hook installed on dedicated background thread.");
             }
         }
 
         _initEvent.Set();
 
-        // Dedicated message loop for WH_MOUSE_LL
         while (NativeMethods.GetMessage(out var msg, IntPtr.Zero, 0, 0) > 0)
         {
             NativeMethods.TranslateMessage(ref msg);
@@ -184,10 +194,33 @@ public sealed class MouseHookService : IDisposable
         {
             lock (_stateLock)
             {
-                // If hook thread died or hook handle was invalidated, restart hook thread
+                // 1. Thread or handle death
                 if (_hookThread == null || !_hookThread.IsAlive || _mouseHookId == IntPtr.Zero)
                 {
                     Logger.Warn("Watchdog detected inactive hook thread. Restarting...");
+                    RestartHookThread();
+                    return;
+                }
+
+                // 2. Silent unhook detection: cursor moved across the screen but hook received no events
+                if (NativeMethods.GetCursorPos(out var currentPos))
+                {
+                    int dx = Math.Abs(currentPos.X - _lastWatchdogPos.X);
+                    int dy = Math.Abs(currentPos.Y - _lastWatchdogPos.Y);
+                    _lastWatchdogPos = currentPos;
+
+                    if ((dx > 10 || dy > 10) && (DateTime.UtcNow - _lastHookHeartbeat) > TimeSpan.FromSeconds(30))
+                    {
+                        Logger.Warn("Watchdog: cursor moved but low-level hook heartbeat timed out. Windows silently removed hook. Reinstalling...");
+                        RestartHookThread();
+                        return;
+                    }
+                }
+
+                // 3. Proactive refresh every 15 minutes to guarantee long-term stability
+                if ((DateTime.UtcNow - _lastProactiveReinstall) > TimeSpan.FromMinutes(15))
+                {
+                    _lastProactiveReinstall = DateTime.UtcNow;
                     RestartHookThread();
                 }
             }
@@ -210,6 +243,7 @@ public sealed class MouseHookService : IDisposable
         _hookThread.SetApartmentState(ApartmentState.STA);
         _hookThread.Start();
         _initEvent.Wait(2000);
+        _lastHookHeartbeat = DateTime.UtcNow;
     }
 
     private void StopHookThread()
@@ -303,7 +337,6 @@ public sealed class MouseHookService : IDisposable
         if (!isDragSelect && !isDoubleClick)
             return;
 
-        // Cancel previous pending copy
         _copyCts?.Cancel();
         var cts = new CancellationTokenSource();
         _copyCts = cts;
