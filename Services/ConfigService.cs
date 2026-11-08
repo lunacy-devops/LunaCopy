@@ -296,7 +296,14 @@ public static class ConfigService
 
             if (Current.RunOnStartup)
             {
-                if (!string.Equals(currentRegVal, expectedRegVal, StringComparison.OrdinalIgnoreCase))
+                if (currentRegVal == null)
+                {
+                    // User removed it manually from registry -> respect user's manual choice
+                    Current.RunOnStartup = false;
+                    SaveInternal();
+                    Logger.Info("Startup registry entry was removed externally. Updated config to disabled.");
+                }
+                else if (!string.Equals(currentRegVal, expectedRegVal, StringComparison.OrdinalIgnoreCase))
                 {
                     // Path moved or missing: update registry
                     key.SetValue(AppName, expectedRegVal);
@@ -308,6 +315,8 @@ public static class ConfigService
                 if (currentRegVal != null)
                 {
                     Current.RunOnStartup = true;
+                    SaveInternal();
+                    Logger.Info("Startup registry entry was added externally. Updated config to enabled.");
                 }
             }
         }

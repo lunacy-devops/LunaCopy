@@ -1,17 +1,21 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using System.Text;
 using LunaCopy.Native;
 
 namespace LunaCopy.Services;
 
 public sealed class MouseHookService : IDisposable
 {
+    private Thread? _hookThread;
+    private uint _hookThreadId;
     private IntPtr _mouseHookId = IntPtr.Zero;
     private IntPtr _winEventHookId = IntPtr.Zero;
 
     private readonly NativeMethods.LowLevelMouseProc _mouseProc;
     private readonly NativeMethods.WinEventDelegate _winEventProc;
+
+    private readonly ManualResetEventSlim _initEvent = new(false);
+    private readonly object _stateLock = new();
 
     private bool _isLeftButtonDown;
     private NativeMethods.POINT _downPoint;
@@ -23,6 +27,7 @@ public sealed class MouseHookService : IDisposable
 
     private CancellationTokenSource? _copyCts;
     private readonly System.Threading.Timer _watchdogTimer;
+    private DateTime _lastHookHeartbeat = DateTime.UtcNow;
 
     private string _cachedForegroundProcess = string.Empty;
     private readonly object _processLock = new();
@@ -56,31 +61,64 @@ public sealed class MouseHookService : IDisposable
 
     public void Start()
     {
-        InstallMouseHook();
-        InstallWinEventHook();
-        UpdateForegroundProcessFromHandle(NativeMethods.GetForegroundWindow());
+        lock (_stateLock)
+        {
+            if (_hookThread != null && _hookThread.IsAlive) return;
 
-        // Start watchdog every 10 seconds
-        _watchdogTimer.Change(TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(10));
+            _initEvent.Reset();
+            _hookThread = new Thread(HookThreadProc)
+            {
+                IsBackground = true,
+                Name = "LunaCopy_MouseHookThread"
+            };
+            _hookThread.SetApartmentState(ApartmentState.STA);
+            _hookThread.Start();
+
+            // Wait up to 2 seconds for hook thread to initialize
+            _initEvent.Wait(2000);
+
+            InstallWinEventHook();
+            UpdateForegroundProcessFromHandle(NativeMethods.GetForegroundWindow());
+
+            _watchdogTimer.Change(TimeSpan.FromSeconds(15), TimeSpan.FromSeconds(15));
+        }
     }
 
-    private void InstallMouseHook()
+    private void HookThreadProc()
     {
-        if (_mouseHookId != IntPtr.Zero) return;
+        _hookThreadId = NativeMethods.GetCurrentThreadId();
 
-        using Process curProcess = Process.GetCurrentProcess();
-        using ProcessModule? curModule = curProcess.MainModule;
-        IntPtr moduleHandle = NativeMethods.GetModuleHandle(curModule?.ModuleName);
-
-        _mouseHookId = NativeMethods.SetWindowsHookEx(NativeMethods.WH_MOUSE_LL, _mouseProc, moduleHandle, 0);
-        if (_mouseHookId == IntPtr.Zero)
+        using (Process curProcess = Process.GetCurrentProcess())
+        using (ProcessModule? curModule = curProcess.MainModule)
         {
-            int err = Marshal.GetLastWin32Error();
-            Logger.Error($"Failed to install SetWindowsHookEx (WH_MOUSE_LL). Win32Error: {err}");
+            IntPtr moduleHandle = NativeMethods.GetModuleHandle(curModule?.ModuleName);
+            _mouseHookId = NativeMethods.SetWindowsHookEx(NativeMethods.WH_MOUSE_LL, _mouseProc, moduleHandle, 0);
+
+            if (_mouseHookId == IntPtr.Zero)
+            {
+                int err = Marshal.GetLastWin32Error();
+                Logger.Error($"Failed to install SetWindowsHookEx on dedicated thread. Win32Error: {err}");
+            }
+            else
+            {
+                Logger.Info("Low-level mouse hook installed on dedicated background thread.");
+            }
         }
-        else
+
+        _initEvent.Set();
+
+        // Dedicated message loop for WH_MOUSE_LL
+        while (NativeMethods.GetMessage(out var msg, IntPtr.Zero, 0, 0) > 0)
         {
-            Logger.Info("Mouse hook installed successfully.");
+            NativeMethods.TranslateMessage(ref msg);
+            NativeMethods.DispatchMessage(ref msg);
+        }
+
+        if (_mouseHookId != IntPtr.Zero)
+        {
+            NativeMethods.UnhookWindowsHookEx(_mouseHookId);
+            _mouseHookId = IntPtr.Zero;
+            Logger.Info("Mouse hook uninstalled on dedicated thread exit.");
         }
     }
 
@@ -117,7 +155,6 @@ public sealed class MouseHookService : IDisposable
 
         try
         {
-            // Ignore system tray, start menu, desktop, and notifications
             if (NativeMethods.IsSystemTrayOrDesktopWindow(hWnd))
                 return;
 
@@ -137,7 +174,7 @@ public sealed class MouseHookService : IDisposable
         }
         catch
         {
-            // Process might have exited or permission denied
+            // Process may have terminated or access denied
         }
     }
 
@@ -145,10 +182,14 @@ public sealed class MouseHookService : IDisposable
     {
         try
         {
-            if (_mouseHookId == IntPtr.Zero)
+            lock (_stateLock)
             {
-                Logger.Warn("Watchdog: Mouse hook lost, attempting reinstall...");
-                InstallMouseHook();
+                // If hook thread died or hook handle was invalidated, restart hook thread
+                if (_hookThread == null || !_hookThread.IsAlive || _mouseHookId == IntPtr.Zero)
+                {
+                    Logger.Warn("Watchdog detected inactive hook thread. Restarting...");
+                    RestartHookThread();
+                }
             }
         }
         catch (Exception ex)
@@ -157,21 +198,48 @@ public sealed class MouseHookService : IDisposable
         }
     }
 
-    public void Stop()
+    private void RestartHookThread()
     {
-        _watchdogTimer.Change(Timeout.Infinite, Timeout.Infinite);
-
-        if (_mouseHookId != IntPtr.Zero)
+        StopHookThread();
+        _initEvent.Reset();
+        _hookThread = new Thread(HookThreadProc)
         {
-            NativeMethods.UnhookWindowsHookEx(_mouseHookId);
-            _mouseHookId = IntPtr.Zero;
-            Logger.Info("Mouse hook removed.");
+            IsBackground = true,
+            Name = "LunaCopy_MouseHookThread"
+        };
+        _hookThread.SetApartmentState(ApartmentState.STA);
+        _hookThread.Start();
+        _initEvent.Wait(2000);
+    }
+
+    private void StopHookThread()
+    {
+        if (_hookThreadId != 0)
+        {
+            NativeMethods.PostThreadMessage(_hookThreadId, NativeMethods.WM_QUIT, IntPtr.Zero, IntPtr.Zero);
+            _hookThreadId = 0;
         }
 
-        if (_winEventHookId != IntPtr.Zero)
+        if (_hookThread != null && _hookThread.IsAlive)
         {
-            NativeMethods.UnhookWinEvent(_winEventHookId);
-            _winEventHookId = IntPtr.Zero;
+            _hookThread.Join(1000);
+            _hookThread = null;
+        }
+    }
+
+    public void Stop()
+    {
+        lock (_stateLock)
+        {
+            _watchdogTimer.Change(Timeout.Infinite, Timeout.Infinite);
+
+            StopHookThread();
+
+            if (_winEventHookId != IntPtr.Zero)
+            {
+                NativeMethods.UnhookWinEvent(_winEventHookId);
+                _winEventHookId = IntPtr.Zero;
+            }
         }
     }
 
@@ -179,6 +247,8 @@ public sealed class MouseHookService : IDisposable
     {
         if (nCode >= 0)
         {
+            _lastHookHeartbeat = DateTime.UtcNow;
+
             int msg = (int)wParam;
             if (msg == NativeMethods.WM_LBUTTONDOWN)
             {
@@ -242,11 +312,9 @@ public sealed class MouseHookService : IDisposable
         {
             try
             {
-                // Check if dragging window caption, borders, or scrollbars
                 if (NativeMethods.IsNonClientDragArea(downPoint) || NativeMethods.IsNonClientDragArea(upPoint))
                     return;
 
-                // Check fullscreen games / presentation
                 if (NativeMethods.IsInFullscreenOrBusyState())
                     return;
 
@@ -292,5 +360,6 @@ public sealed class MouseHookService : IDisposable
         _copyCts?.Cancel();
         Stop();
         _watchdogTimer.Dispose();
+        _initEvent.Dispose();
     }
 }

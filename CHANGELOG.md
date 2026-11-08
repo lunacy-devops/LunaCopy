@@ -23,5 +23,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Rebranded project from AutoCopy to **LunaCopy**.
-- Windows 11 Settings window updated with modern WinUI 3 styling and ToggleSwitches.
+- Windows 11 Settings window updated with modern Fluent dark styling and custom ToggleSwitches.
 - Real-time background process scanning in "Add Exclusion" dialog.

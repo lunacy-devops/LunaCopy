@@ -24,12 +24,18 @@ public class ServiceTests
     [InlineData("powershell.exe", true)]
     [InlineData("pwsh.exe", true)]
     [InlineData("conhost.exe", true)]
+    [InlineData("windowsterminal.exe", true)]
+    [InlineData("wt.exe", true)]
+    [InlineData("alacritty.exe", true)]
+    [InlineData("wezterm.exe", true)]
+    [InlineData("putty.exe", true)]
+    [InlineData("tabby.exe", true)]
     [InlineData("wsl.exe", true)]
     [InlineData("bash", true)]
     [InlineData("notepad.exe", false)]
     [InlineData("chrome.exe", false)]
     [InlineData("code.exe", false)]
-    public void IsConsoleProcess_CorrectlyIdentifiesConsoles(string procName, bool expected)
+    public void IsConsoleProcess_CorrectlyIdentifiesConsolesAndTerminals(string procName, bool expected)
     {
         bool actual = TextExtractorService.IsConsoleProcess(procName);
         Assert.Equal(expected, actual);
@@ -40,19 +46,26 @@ public class ServiceTests
     {
         string testApp = "TestMockApp_" + Guid.NewGuid().ToString("N") + ".exe";
 
-        Assert.False(ConfigService.IsExcluded(testApp));
+        try
+        {
+            Assert.False(ConfigService.IsExcluded(testApp));
 
-        bool added = ConfigService.AddExclusion(testApp);
-        Assert.True(added);
-        Assert.True(ConfigService.IsExcluded(testApp.ToUpperInvariant()));
-        Assert.True(ConfigService.IsExcluded(testApp.ToLowerInvariant()));
+            bool added = ConfigService.AddExclusion(testApp);
+            Assert.True(added);
+            Assert.True(ConfigService.IsExcluded(testApp.ToUpperInvariant()));
+            Assert.True(ConfigService.IsExcluded(testApp.ToLowerInvariant()));
 
-        // Cannot add duplicate
-        Assert.False(ConfigService.AddExclusion(testApp));
+            // Cannot add duplicate
+            Assert.False(ConfigService.AddExclusion(testApp));
 
-        bool removed = ConfigService.RemoveExclusion(testApp.ToUpperInvariant());
-        Assert.True(removed);
-        Assert.False(ConfigService.IsExcluded(testApp));
+            bool removed = ConfigService.RemoveExclusion(testApp.ToUpperInvariant());
+            Assert.True(removed);
+            Assert.False(ConfigService.IsExcluded(testApp));
+        }
+        finally
+        {
+            ConfigService.RemoveExclusion(testApp);
+        }
     }
 
     [Fact]

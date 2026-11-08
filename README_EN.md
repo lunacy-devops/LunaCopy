@@ -60,7 +60,11 @@
 
 1. **Elevated Windows (UIPI):**
    Windows User Interface Privilege Isolation prevents standard user applications from sending input or inspecting windows running with Administrator privileges. To enable auto-copying inside elevated apps (e.g., Task Manager or Registry Editor), run `LunaCopy.exe` as Administrator.
-2. **Diagnostics Log:**
+2. **Custom Graphical Cursors:**
+   LunaCopy checks for the standard system `IDC_IBEAM` text cursor. In software using proprietary custom cursor bitmaps, text selection works seamlessly via native UI Automation. If the application lacks UIA support and renders its own non-standard cursor, the blind `Ctrl+C` fallback is deliberately avoided to prevent unintended clipboard alterations during dragging or sketching.
+3. **Multiple Instances:**
+   LunaCopy uses a system-wide mutex. Launching a second instance displays an alert notifying the user that LunaCopy is already active in the system tray.
+4. **Diagnostics Log:**
    Diagnostics are logged locally to `%AppData%\LunaCopy\LunaCopy.log` (or next to the executable).
 
 ---

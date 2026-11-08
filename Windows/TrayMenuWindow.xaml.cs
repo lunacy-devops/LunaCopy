@@ -83,7 +83,6 @@ public partial class TrayMenuWindow : Window
             LastProcessButton.IsEnabled = true;
             ProcessNameText.Text = _currentProcessName;
             bool isExcluded = ConfigService.IsExcluded(_currentProcessName);
-            // Checked [✓] means active for this process (not excluded)
             ProcessCheckText.Visibility = isExcluded ? Visibility.Hidden : Visibility.Visible;
         }
     }
@@ -97,17 +96,12 @@ public partial class TrayMenuWindow : Window
         var mi = new NativeMethods.MONITORINFO { cbSize = Marshal.SizeOf<NativeMethods.MONITORINFO>() };
         bool hasMonitorInfo = NativeMethods.GetMonitorInfo(hMonitor, ref mi);
 
-        var source = PresentationSource.FromVisual(this);
-        double dpiX = 1.0;
-        double dpiY = 1.0;
-        if (source?.CompositionTarget != null)
-        {
-            dpiX = source.CompositionTarget.TransformFromDevice.M11;
-            dpiY = source.CompositionTarget.TransformFromDevice.M22;
-        }
+        var (scaleX, scaleY) = NativeMethods.GetMonitorDpiScale(hMonitor);
+        if (scaleX <= 0) scaleX = 1.0;
+        if (scaleY <= 0) scaleY = 1.0;
 
-        double cursorX = pt.X * dpiX;
-        double cursorY = pt.Y * dpiY;
+        double cursorX = pt.X / scaleX;
+        double cursorY = pt.Y / scaleY;
 
         double menuW = ActualWidth > 0 ? ActualWidth : 236;
         double menuH = ActualHeight > 0 ? ActualHeight : 165;
@@ -119,10 +113,10 @@ public partial class TrayMenuWindow : Window
 
         if (hasMonitorInfo)
         {
-            workLeft = mi.rcWork.Left * dpiX;
-            workTop = mi.rcWork.Top * dpiY;
-            workRight = mi.rcWork.Right * dpiX;
-            workBottom = mi.rcWork.Bottom * dpiY;
+            workLeft = mi.rcWork.Left / scaleX;
+            workTop = mi.rcWork.Top / scaleY;
+            workRight = mi.rcWork.Right / scaleX;
+            workBottom = mi.rcWork.Bottom / scaleY;
         }
 
         double left = cursorX - menuW + 12;

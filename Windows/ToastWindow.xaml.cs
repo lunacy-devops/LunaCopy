@@ -57,7 +57,6 @@ public partial class ToastWindow : Window
 
         try
         {
-            // Hold 700 ms after fade-in
             await Task.Delay(800, cts.Token);
         }
         catch (TaskCanceledException)
@@ -89,18 +88,12 @@ public partial class ToastWindow : Window
         var mi = new NativeMethods.MONITORINFO { cbSize = Marshal.SizeOf<NativeMethods.MONITORINFO>() };
         bool hasMonitorInfo = NativeMethods.GetMonitorInfo(hMonitor, ref mi);
 
-        var source = PresentationSource.FromVisual(this);
-        double dpiX = 1.0;
-        double dpiY = 1.0;
+        var (scaleX, scaleY) = NativeMethods.GetMonitorDpiScale(hMonitor);
+        if (scaleX <= 0) scaleX = 1.0;
+        if (scaleY <= 0) scaleY = 1.0;
 
-        if (source?.CompositionTarget != null)
-        {
-            dpiX = source.CompositionTarget.TransformFromDevice.M11;
-            dpiY = source.CompositionTarget.TransformFromDevice.M22;
-        }
-
-        double cursorDipX = pt.X * dpiX;
-        double cursorDipY = pt.Y * dpiY;
+        double cursorDipX = pt.X / scaleX;
+        double cursorDipY = pt.Y / scaleY;
 
         double width = ActualWidth > 0 ? ActualWidth : 120;
         double height = ActualHeight > 0 ? ActualHeight : 36;
@@ -110,10 +103,10 @@ public partial class ToastWindow : Window
 
         if (hasMonitorInfo)
         {
-            double workLeft = mi.rcWork.Left * dpiX;
-            double workTop = mi.rcWork.Top * dpiY;
-            double workRight = mi.rcWork.Right * dpiX;
-            double workBottom = mi.rcWork.Bottom * dpiY;
+            double workLeft = mi.rcWork.Left / scaleX;
+            double workTop = mi.rcWork.Top / scaleY;
+            double workRight = mi.rcWork.Right / scaleX;
+            double workBottom = mi.rcWork.Bottom / scaleY;
 
             if (targetTop < workTop + 4)
             {

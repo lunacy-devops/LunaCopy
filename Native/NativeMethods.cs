@@ -10,6 +10,7 @@ public static class NativeMethods
     public const int WM_MOUSEMOVE = 0x0200;
     public const int WM_LBUTTONDOWN = 0x0201;
     public const int WM_LBUTTONUP = 0x0202;
+    public const uint WM_QUIT = 0x0012;
 
     // Virtual Keys
     public const int VK_SHIFT = 0x10;
@@ -60,8 +61,9 @@ public static class NativeMethods
     public const int IDC_IBEAM = 32513;
     public const uint CURSOR_SHOWING = 0x00000001;
 
-    // Monitor
+    // Monitor & DPI
     public const uint MONITOR_DEFAULTTONEAREST = 0x00000002;
+    public const int MDT_EFFECTIVE_DPI = 0;
 
     // DWM
     public const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
@@ -69,7 +71,7 @@ public static class NativeMethods
     public const int DWMWCP_ROUND = 2;
     public const int DWMWCP_ROUNDSMALL = 3;
 
-    // Shell User Notification States (Fullscreen / Gaming / Presentation)
+    // Shell User Notification States
     public enum QUERY_USER_NOTIFICATION_STATE
     {
         QUNS_NOT_PRESENT = 1,
@@ -117,6 +119,17 @@ public static class NativeMethods
         public uint flags;
         public IntPtr hCursor;
         public POINT ptScreenPos;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct MSG
+    {
+        public IntPtr hwnd;
+        public uint message;
+        public IntPtr wParam;
+        public IntPtr lParam;
+        public uint time;
+        public POINT pt;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -190,6 +203,22 @@ public static class NativeMethods
     [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
     public static extern IntPtr GetModuleHandle(string? lpModuleName);
 
+    [DllImport("kernel32.dll")]
+    public static extern uint GetCurrentThreadId();
+
+    [DllImport("user32.dll")]
+    public static extern int GetMessage(out MSG lpMsg, IntPtr hWnd, uint wMsgFilterMin, uint wMsgFilterMax);
+
+    [DllImport("user32.dll")]
+    public static extern bool TranslateMessage([In] ref MSG lpMsg);
+
+    [DllImport("user32.dll")]
+    public static extern IntPtr DispatchMessage([In] ref MSG lpMsg);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool PostThreadMessage(uint idThread, uint msg, IntPtr wParam, IntPtr lParam);
+
     [DllImport("user32.dll")]
     public static extern IntPtr GetForegroundWindow();
 
@@ -251,6 +280,9 @@ public static class NativeMethods
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
 
+    [DllImport("shcore.dll")]
+    public static extern int GetDpiForMonitor(IntPtr hmonitor, int dpiType, out uint dpiX, out uint dpiY);
+
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool DestroyIcon(IntPtr hIcon);
@@ -281,6 +313,22 @@ public static class NativeMethods
 
     // Cached system I-Beam cursor handle
     private static readonly IntPtr SystemIBeamCursor = LoadCursor(IntPtr.Zero, IDC_IBEAM);
+
+    public static (double ScaleX, double ScaleY) GetMonitorDpiScale(IntPtr hMonitor)
+    {
+        try
+        {
+            if (hMonitor != IntPtr.Zero && GetDpiForMonitor(hMonitor, MDT_EFFECTIVE_DPI, out uint dpiX, out uint dpiY) == 0)
+            {
+                return (dpiX / 96.0, dpiY / 96.0);
+            }
+        }
+        catch
+        {
+            // shcore.dll may not be available on older versions
+        }
+        return (1.0, 1.0);
+    }
 
     public static bool IsModifierPressed()
     {
@@ -341,7 +389,7 @@ public static class NativeMethods
         }
         catch
         {
-            // Ignore if shell32 not available
+            // Ignore
         }
         return false;
     }
@@ -389,7 +437,7 @@ public static class NativeMethods
         }
         catch
         {
-            // Ignore on older Windows versions
+            // Ignore
         }
     }
 }

@@ -35,7 +35,10 @@ jobs:
           "APP_VERSION=$ver" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Restore dependencies
-        run: dotnet restore LunaCopy.csproj
+        run: dotnet restore LunaCopy.sln
+
+      - name: Run Tests
+        run: dotnet test LunaCopy.sln --configuration Release --verbosity normal
 
       - name: Publish Single-File Executable
         run: dotnet publish LunaCopy.csproj -c Release -r win-x64 -p:Version=${{ env.APP_VERSION }} -o publish

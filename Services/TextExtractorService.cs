@@ -15,6 +15,7 @@ public enum UiaExtractionStatus
     NotSupported,
     PasswordIgnored,
     EmptySelection,
+    TimedOut,
     Success
 }
 
@@ -56,7 +57,7 @@ public sealed class ClipboardBackup
                 }
                 catch
                 {
-                    // Some custom OLE formats cannot be queried
+                    // Skip unsupported custom OLE formats
                 }
             }
 
@@ -93,6 +94,20 @@ public static class TextExtractorService
         "powershell.exe",
         "pwsh.exe",
         "conhost.exe",
+        "windowsterminal.exe",
+        "wt.exe",
+        "alacritty.exe",
+        "wezterm.exe",
+        "wezterm-gui.exe",
+        "conemu.exe",
+        "conemu64.exe",
+        "putty.exe",
+        "kitty.exe",
+        "tabby.exe",
+        "hyper.exe",
+        "terminus.exe",
+        "xshell.exe",
+        "mobaxterm.exe",
         "wsl.exe",
         "bash.exe",
         "mintty.exe",
@@ -107,14 +122,30 @@ public static class TextExtractorService
 
     public static async Task<bool> TryCopySelectedTextAsync(string currentProcessName)
     {
-        // 1. Give target application 65ms to process selection
+        // 1. Brief pause to allow target application to finalize its selection
         await Task.Delay(65).ConfigureAwait(false);
 
         if (NativeMethods.IsModifierPressed()) return false;
 
-        // 2. Query UI Automation with timeout (200ms)
-        var uiaCts = new CancellationTokenSource(200);
-        (UiaExtractionStatus status, string? uiaText) = await Task.Run(() => TryGetSelectedTextViaUia(uiaCts.Token)).ConfigureAwait(false);
+        // 2. Query UI Automation with a hard timeout of 200ms
+        using var uiaCts = new CancellationTokenSource();
+        var uiaTask = Task.Run(() => TryGetSelectedTextViaUia(uiaCts.Token), uiaCts.Token);
+        var timeoutTask = Task.Delay(200);
+
+        var completed = await Task.WhenAny(uiaTask, timeoutTask).ConfigureAwait(false);
+        UiaExtractionStatus status;
+        string? uiaText = null;
+
+        if (completed == uiaTask)
+        {
+            (status, uiaText) = await uiaTask.ConfigureAwait(false);
+        }
+        else
+        {
+            uiaCts.Cancel();
+            status = UiaExtractionStatus.TimedOut;
+            Logger.Warn("UIA query exceeded 200ms deadline. Aborting UIA extraction.");
+        }
 
         if (status == UiaExtractionStatus.PasswordIgnored)
         {
@@ -135,27 +166,26 @@ public static class TextExtractorService
             }
         }
 
-        // If target supports UIA TextPattern and definitively returned empty selection,
-        // DO NOT fall back to Ctrl+C! The user had no selection!
-        if (status == UiaExtractionStatus.EmptySelection)
+        // If target supports UIA TextPattern and definitively reported empty selection,
+        // or if UIA timed out/hung, do NOT fall back to blind Ctrl+C!
+        if (status is UiaExtractionStatus.EmptySelection or UiaExtractionStatus.TimedOut)
         {
             return false;
         }
 
         // 3. Fallback (Ctrl+C):
-        // Fallback is only allowed if:
+        // Allowed ONLY if:
         // - Control does NOT support UIA TextPattern
-        // - Process is NOT a command line / console (where Ctrl+C cancels running jobs)
-        // - Cursor is currently an I-Beam (indicating text selection area)
+        // - Process is NOT a command line / console terminal
+        // - Cursor is currently an I-Beam (indicating active text area)
         if (IsConsoleProcess(currentProcessName))
         {
-            Logger.Info($"Fallback skipped for console process: {currentProcessName}");
+            Logger.Info($"Fallback skipped for console/terminal process: {currentProcessName}");
             return false;
         }
 
         if (!NativeMethods.IsCursorIBeam())
         {
-            // Not a text cursor (e.g. arrow, hand, move, sizing). Do not send Ctrl+C!
             return false;
         }
 
@@ -184,13 +214,11 @@ public static class TextExtractorService
 
         if (!seqChanged)
         {
-            // Clipboard didn't change at all
             return false;
         }
 
         string? clipboardText = await GetClipboardTextOnStaAsync().ConfigureAwait(false);
 
-        // If clipboard contains no valid text, or is duplicate, restore backup
         if (string.IsNullOrWhiteSpace(clipboardText) || IsDuplicateRecentCopy(clipboardText))
         {
             await RestoreClipboardOnStaAsync(backup).ConfigureAwait(false);
@@ -260,7 +288,6 @@ public static class TextExtractorService
                 {
                     if (ct.IsCancellationRequested) break;
 
-                    // Limit to 64K characters to prevent memory explosion or lockup
                     string? part = range.GetText(65536);
                     if (!string.IsNullOrEmpty(part))
                     {
@@ -279,7 +306,7 @@ public static class TextExtractorService
         }
         catch (Exception ex)
         {
-            Logger.Warn($"UIA query failed or timed out: {ex.Message}");
+            Logger.Warn($"UIA query exception: {ex.Message}");
         }
 
         return (UiaExtractionStatus.NotSupported, null);

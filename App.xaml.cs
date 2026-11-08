@@ -6,12 +6,14 @@ using System.Windows.Threading;
 using LunaCopy.Services;
 using LunaCopy.Windows;
 using Application = System.Windows.Application;
+using MessageBox = System.Windows.MessageBox;
 
 namespace LunaCopy;
 
 public partial class App : Application
 {
     private Mutex? _singleInstanceMutex;
+    private Mutex? _legacyMutex;
     private NotifyIcon? _notifyIcon;
     private Icon? _activeIcon;
     private Icon? _inactiveIcon;
@@ -28,9 +30,16 @@ public partial class App : Application
         SetupExceptionHandling();
 
         _singleInstanceMutex = new Mutex(true, @"Local\LunaCopy_SingleInstance_Mutex", out bool isNewInstance);
-        if (!isNewInstance)
+        _legacyMutex = new Mutex(true, @"Local\AutoCopy_SingleInstance_Mutex", out bool isLegacyFree);
+
+        if (!isNewInstance || !isLegacyFree)
         {
-            Logger.Warn("Another instance of LunaCopy is already running. Exiting.");
+            Logger.Warn("Another instance of LunaCopy (or legacy AutoCopy) is already running.");
+            MessageBox.Show(
+                "LunaCopy уже запущен и работает в системном трее возле часов.",
+                "LunaCopy",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
             Shutdown();
             return;
         }
@@ -78,7 +87,7 @@ public partial class App : Application
         DispatcherUnhandledException += (s, e) =>
         {
             Logger.Error("DispatcherUnhandledException", e.Exception);
-            e.Handled = true; // Prevent application crash when recoverable
+            e.Handled = true;
         };
 
         TaskScheduler.UnobservedTaskException += (s, e) =>
@@ -185,5 +194,8 @@ public partial class App : Application
 
         _singleInstanceMutex?.Dispose();
         _singleInstanceMutex = null;
+
+        _legacyMutex?.Dispose();
+        _legacyMutex = null;
     }
 }
