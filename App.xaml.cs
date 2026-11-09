@@ -1,4 +1,4 @@
-using System.Drawing;
+﻿using System.Drawing;
 using System.Threading;
 using System.Windows;
 using System.Windows.Automation;
@@ -34,7 +34,7 @@ public partial class App : Application
         {
             Logger.Warn("Another instance of LunaCopy is already running.");
             MessageBox.Show(
-                "LunaCopy уже запущен и работает в системном трее возле часов.",
+                Loc.Get("App.AlreadyRunning"),
                 "LunaCopy",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
@@ -48,8 +48,8 @@ public partial class App : Application
             legacyMutex.Dispose();
             Logger.Warn("A running instance of legacy AutoCopy was detected.");
             MessageBox.Show(
-                "Обнаружен работающий процесс предыдущей версии (AutoCopy).\nПожалуйста, закройте его в системном трее перед запуском LunaCopy.",
-                "LunaCopy — Конфликт версий",
+                Loc.Get("App.LegacyRunning"),
+                Loc.Get("App.LegacyTitle"),
                 MessageBoxButton.OK,
                 MessageBoxImage.Warning);
             Shutdown();
@@ -84,12 +84,7 @@ public partial class App : Application
         _mouseHook.TextCopied += OnTextCopied;
         _mouseHook.Start();
 
-        _trayMenuWindow = new TrayMenuWindow(
-            onToggleEnabled: ToggleActiveState,
-            onOpenSettings: OpenSettingsWindow,
-            onExit: ExitApplication,
-            getLastActiveProcess: () => _mouseHook?.LastActiveProcessName ?? string.Empty,
-            onExclusionChanged: () => _settingsWindow?.RefreshExclusionList());
+        _trayMenuWindow = CreateTrayMenu();
 
         _notifyIcon = new NotifyIcon
         {
@@ -99,6 +94,46 @@ public partial class App : Application
         UpdateTrayVisuals();
 
         Logger.Info("LunaCopy initialized successfully.");
+    }
+
+    private TrayMenuWindow CreateTrayMenu() => new(
+        onToggleEnabled: ToggleActiveState,
+        onOpenSettings: OpenSettingsWindow,
+        onExit: ExitApplication,
+        getLastActiveProcess: () => _mouseHook?.LastActiveProcessName ?? string.Empty,
+        onExclusionChanged: () => _settingsWindow?.RefreshExclusionList());
+
+    /// <summary>Applies a new UI language ("auto", "ru" or "en") and rebuilds all localized windows.</summary>
+    public void ChangeLanguage(string setting)
+    {
+        ConfigService.Current.Language = setting;
+        ConfigService.Save();
+
+        _trayMenuWindow?.Close();
+        _trayMenuWindow = CreateTrayMenu();
+
+        _toastWindow?.Close();
+        _toastWindow = new ToastWindow();
+
+        UpdateTrayVisuals();
+
+        if (_settingsWindow != null)
+        {
+            var old = _settingsWindow;
+            double left = old.Left, top = old.Top;
+            _settingsWindow = null;
+            old.Close();
+
+            _settingsWindow = new SettingsWindow
+            {
+                WindowStartupLocation = WindowStartupLocation.Manual,
+                Left = left,
+                Top = top
+            };
+            _settingsWindow.Closed += (_, _) => _settingsWindow = null;
+            _settingsWindow.Show();
+            _settingsWindow.Activate();
+        }
     }
 
     private void SetupExceptionHandling()
@@ -149,7 +184,7 @@ public partial class App : Application
 
         bool active = ConfigService.Current.IsEnabled;
         _notifyIcon.Icon = active ? _activeIcon : _inactiveIcon;
-        _notifyIcon.Text = active ? "LunaCopy — Активен" : "LunaCopy — Отключен";
+        _notifyIcon.Text = Loc.Get(active ? "App.TooltipActive" : "App.TooltipDisabled");
     }
 
     private void OnTextCopied()

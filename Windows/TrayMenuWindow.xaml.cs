@@ -1,4 +1,4 @@
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Interop;
@@ -87,7 +87,7 @@ public partial class TrayMenuWindow : Window
         _currentProcessName = _getLastActiveProcess();
         if (string.IsNullOrWhiteSpace(_currentProcessName))
         {
-            ProcessNameText.Text = "Нет активного процесса";
+            ProcessNameText.Text = Loc.Get("Tray.NoProcess");
             ProcessCheckText.Visibility = Visibility.Hidden;
             LastProcessButton.IsEnabled = false;
         }

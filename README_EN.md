@@ -1,4 +1,4 @@
-<div align="center">
+﻿<div align="center">
 
 # 🌙 LunaCopy
 
@@ -30,12 +30,14 @@
 - **Gaming & Fullscreen Detection:**
   - Automatically suspends copying during full-screen games and presentations via `SHQueryUserNotificationState`.
 - **Minimalistic Feedback (Toast + Soft Pop):**
-  - Smooth floating dark toast ("Скопировано!") appears right above the cursor without stealing focus (`WS_EX_NOACTIVATE | WS_EX_TRANSPARENT`).
+  - Smooth floating dark toast ("Copied!") appears right above the cursor without stealing focus (`WS_EX_NOACTIVATE | WS_EX_TRANSPARENT`).
   - Procedural soft pop sound (WAV ~800Hz with trailing silence for Bluetooth audio latency).
 - **Windows 11 Dark Aesthetic:**
   - Built with **C# (.NET 8, WPF)** styled after the Windows 11 Fluent dark design language: `#202020` / `#2B2B2B` surfaces, toggle switches, DWM rounded window corners, and `PerMonitorV2` High-DPI support.
+- **Two UI languages:** Russian and English. Follows the Windows language by default; switch with the `AUTO / RU / EN` button in the settings title bar (`Language` in `config.json`).
 
 ---
+
 
 ## 💻 System Requirements
 

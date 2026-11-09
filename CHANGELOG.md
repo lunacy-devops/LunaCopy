@@ -1,9 +1,19 @@
-# Changelog
+﻿# Changelog
 
 All notable changes to the **LunaCopy** project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Added
+- **English interface**: UI language follows Windows by default and can be switched (Auto / RU / EN) with the button in the settings title bar; stored as `Language` in `config.json`.
+
+### Changed
+- Settings, exclusion dialog: removed the transparent outer frame and drop-shadow margin; windows are now regular opaque windows with native DWM rounded corners and shadow.
+- UIPI elevation detection now uses the process token; the hook watchdog backs off when installation keeps failing.
+- CI takes the version from the git tag, otherwise from `LunaCopy.csproj`.
 
 ## [1.1.0] - 2026-11-08
 

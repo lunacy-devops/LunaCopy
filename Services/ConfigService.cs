@@ -11,6 +11,7 @@ public class AppConfig
     public bool RunOnStartup { get; set; } = false;
     public bool SoundEnabled { get; set; } = true;
     public bool ToastEnabled { get; set; } = true;
+    public string Language { get; set; } = "auto";
     public List<string> ExcludedProcesses { get; set; } = new()
     {
         "cs2.exe",

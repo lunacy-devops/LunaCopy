@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -135,8 +135,8 @@ public partial class AddExclusionWindow : Window
     {
         var dlg = new OpenFileDialog
         {
-            Title = "Выберите исполняемый файл (.exe)",
-            Filter = "Исполняемые файлы (*.exe)|*.exe|Все файлы (*.*)|*.*",
+            Title = Loc.Get("Add.BrowseTitle"),
+            Filter = Loc.Get("Add.BrowseFilter"),
             CheckFileExists = true
         };
 

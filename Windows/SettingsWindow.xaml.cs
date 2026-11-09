@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
@@ -13,6 +13,7 @@ public partial class SettingsWindow : Window
     {
         InitializeComponent();
         HeaderIconImage.Source = IconGenerator.CreateClipboardCheckDrawingImage(true);
+        VersionText.Text = "v" + (typeof(SettingsWindow).Assembly.GetName().Version?.ToString(3) ?? "1.1.0");
         RefreshAllControls();
 
         PreviewKeyDown += (_, e) =>
@@ -33,6 +34,16 @@ public partial class SettingsWindow : Window
 
     public void RefreshAllControls()
     {
+        string languageSetting = ConfigService.Current.Language;
+        LanguageButton.Content = languageSetting switch
+        {
+            Loc.Russian => "RU",
+            Loc.English => "EN",
+            _ => "AUTO"
+        };
+        LanguageButton.ToolTip = Loc.Get("Settings.Language.Title") + ": " + Loc.DescribeSetting(languageSetting)
+            + "\n" + Loc.Get("Settings.Language.Desc");
+
         StartupToggle.IsChecked = ConfigService.Current.RunOnStartup;
         SoundToggle.IsChecked = ConfigService.Current.SoundEnabled;
         ToastToggle.IsChecked = ConfigService.Current.ToastEnabled;
@@ -48,12 +59,10 @@ public partial class SettingsWindow : Window
         RemoveExclusionButton.IsEnabled = ExcludedListBox.SelectedItem != null;
     }
 
-    private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    private void LanguageButton_Click(object sender, RoutedEventArgs e)
     {
-        if (e.LeftButton == MouseButtonState.Pressed)
-        {
-            DragMove();
-        }
+        string next = Loc.NextSetting(ConfigService.Current.Language);
+        ((App)System.Windows.Application.Current).ChangeLanguage(next);
     }
 
     private void MinimizeButton_Click(object sender, RoutedEventArgs e)
@@ -74,8 +83,8 @@ public partial class SettingsWindow : Window
         {
             StartupToggle.IsChecked = !desired;
             System.Windows.MessageBox.Show(this,
-                "Не удалось изменить параметр автозапуска в реестре Windows. Возможно, требуются права администратора.",
-                "LunaCopy — Ошибка автозапуска",
+                Loc.Get("Settings.StartupError"),
+                Loc.Get("Settings.StartupErrorTitle"),
                 MessageBoxButton.OK,
                 MessageBoxImage.Warning);
         }
