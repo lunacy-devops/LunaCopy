@@ -87,5 +87,5 @@ dotnet publish LunaCopy.csproj -c Release -r win-x64 -o publish
 
 ## 📄 License
 
-Licensed under the [MIT License](LICENSE).  
-Author: **Denis Getman** ([tokia20139@gmail.com](mailto:tokia20139@gmail.com)).
+Licensed under the [MIT License](LICENSE).
+

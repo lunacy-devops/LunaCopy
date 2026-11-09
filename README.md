@@ -126,5 +126,5 @@ LunaCopy/
 
 ## 📄 Лицензия
 
-Проект распространяется под свободной лицензией [MIT License](LICENSE).  
-Автор: **Denis Getman** ([tokia20139@gmail.com](mailto:tokia20139@gmail.com)).
+Проект распространяется под свободной лицензией [MIT License](LICENSE).
+
