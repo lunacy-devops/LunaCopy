@@ -33,7 +33,8 @@ jobs:
             $ver = "${{ github.ref_name }}".TrimStart("v")
           }
           Write-Host "Version override: '$ver'"
-          "VERSION_ARG=$(if ($ver) { "-p:Version=$ver" } else { "" })" | Out-File -FilePath $env:GITHUB_ENV -Append
+          $versionArg = if ($ver) { "-p:Version=$ver" } else { "" }
+          "VERSION_ARG=$versionArg" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Restore dependencies
         run: dotnet restore LunaCopy.sln
