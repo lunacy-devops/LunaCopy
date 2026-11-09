@@ -343,7 +343,7 @@
                                        Foreground="#FFFFFF"
                                        FontFamily="Segoe UI Variable Text, Segoe UI"
                                        FontSize="13.5"/>
-                            <TextBlock Text="{loc:Tr Settings.Startup.Desc}"
+                            <TextBlock Text="{loc:Tr Settings.Startup.Desc}" TextWrapping="Wrap"
                                        Foreground="#9D9D9D"
                                        FontFamily="Segoe UI Variable Text, Segoe UI"
                                        FontSize="12"
@@ -383,7 +383,7 @@
                                        Foreground="#FFFFFF"
                                        FontFamily="Segoe UI Variable Text, Segoe UI"
                                        FontSize="13.5"/>
-                            <TextBlock Text="{loc:Tr Settings.Sound.Desc}"
+                            <TextBlock Text="{loc:Tr Settings.Sound.Desc}" TextWrapping="Wrap"
                                        Foreground="#9D9D9D"
                                        FontFamily="Segoe UI Variable Text, Segoe UI"
                                        FontSize="12"
@@ -422,7 +422,7 @@
                                        Foreground="#FFFFFF"
                                        FontFamily="Segoe UI Variable Text, Segoe UI"
                                        FontSize="13.5"/>
-                            <TextBlock Text="{loc:Tr Settings.Toast.Desc}"
+                            <TextBlock Text="{loc:Tr Settings.Toast.Desc}" TextWrapping="Wrap"
                                        Foreground="#9D9D9D"
                                        FontFamily="Segoe UI Variable Text, Segoe UI"
                                        FontSize="12"
@@ -484,7 +484,7 @@
                                            Foreground="#FFFFFF"
                                            FontFamily="Segoe UI Variable Text, Segoe UI"
                                            FontSize="13.5"/>
-                                <TextBlock Text="{loc:Tr Settings.Excluded.Desc}"
+                                <TextBlock Text="{loc:Tr Settings.Excluded.Desc}" TextWrapping="Wrap"
                                            Foreground="#9D9D9D"
                                            FontFamily="Segoe UI Variable Text, Segoe UI"
                                            FontSize="12"
