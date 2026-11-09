@@ -64,6 +64,19 @@ public partial class TrayMenuWindow : Window
         NativeMethods.SetForegroundWindow(hwnd);
         Activate();
         Focus();
+
+        // If Windows refused to give us focus, Deactivated would never fire and the menu
+        // would stay on screen forever. Close it in that case.
+        var guard = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
+        guard.Tick += (_, _) =>
+        {
+            guard.Stop();
+            if (IsVisible && !IsActive)
+            {
+                Hide();
+            }
+        };
+        guard.Start();
     }
 
     private void RefreshMenuState()

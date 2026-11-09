@@ -99,8 +99,22 @@ public class ServiceTests : IDisposable
         Assert.Contains("Photoshop.exe", config.ExcludedProcesses);
     }
 
+    [Fact]
+    public void WindowElevation_ZeroHandle_IsNotElevated()
+    {
+        Assert.False(NativeMethods.IsWindowElevatedRelativeToUs(IntPtr.Zero));
+    }
+
+    [Fact]
+    public void WindowElevation_ForegroundWindow_DoesNotThrow()
+    {
+        IntPtr hwnd = NativeMethods.GetForegroundWindow();
+        var ex = Record.Exception(() => NativeMethods.IsWindowElevatedRelativeToUs(hwnd));
+        Assert.Null(ex);
+    }
+
     [Theory]
-    [InlineData(0, 0, 3, 4, 5.0, false)]      // Exactly 5px: threshold is > 5px -> false
+    [InlineData(0, 0, 3, 4, 5.0, false)]    // Exactly 5px: threshold is > 5px -> false
     [InlineData(0, 0, 4, 4, 5.656, true)]    // > 5px -> true
     [InlineData(100, 100, 101, 102, 2.236, false)]
     [InlineData(10, 10, 50, 60, 64.03, true)]

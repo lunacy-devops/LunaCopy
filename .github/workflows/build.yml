@@ -27,12 +27,13 @@ jobs:
       - name: Determine Build Version
         shell: pwsh
         run: |
-          $ver = "1.1.0"
+          # Tagged builds use the tag (v1.2.0 -> 1.2.0); other builds use the Version from LunaCopy.csproj
+          $ver = ""
           if ("${{ github.ref }}".StartsWith("refs/tags/v")) {
             $ver = "${{ github.ref_name }}".TrimStart("v")
           }
-          Write-Host "Building version: $ver"
-          "APP_VERSION=$ver" | Out-File -FilePath $env:GITHUB_ENV -Append
+          Write-Host "Version override: '$ver'"
+          "VERSION_ARG=$(if ($ver) { "-p:Version=$ver" } else { "" })" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Restore dependencies
         run: dotnet restore LunaCopy.sln
@@ -41,7 +42,7 @@ jobs:
         run: dotnet test LunaCopy.sln --configuration Release --verbosity normal
 
       - name: Publish Single-File Executable
-        run: dotnet publish LunaCopy.csproj -c Release -r win-x64 -p:Version=${{ env.APP_VERSION }} -o publish
+        run: dotnet publish LunaCopy.csproj -c Release -r win-x64 ${{ env.VERSION_ARG }} -o publish
 
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v4

@@ -1,4 +1,4 @@
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using System.Text;
 
 namespace LunaCopy.Native;
@@ -7,7 +7,6 @@ public static class NativeMethods
 {
     // Hooks
     public const int WH_MOUSE_LL = 14;
-    public const int WM_MOUSEMOVE = 0x0200;
     public const int WM_LBUTTONDOWN = 0x0201;
     public const int WM_LBUTTONUP = 0x0202;
     public const uint WM_QUIT = 0x0012;
@@ -27,7 +26,6 @@ public static class NativeMethods
     public const int WS_EX_TOOLWINDOW = 0x00000080;
 
     public const uint WM_NCHITTEST = 0x0084;
-    public const int HTCLIENT = 1;
     public const int HTCAPTION = 2;
     public const int HTSYSMENU = 3;
     public const int HTGROWBOX = 4;
@@ -72,7 +70,6 @@ public static class NativeMethods
     public const int DWMWCP_ROUNDSMALL = 3;
 
     public const uint SWP_NOSIZE = 0x0001;
-    public const uint SWP_NOMOVE = 0x0002;
     public const uint SWP_NOZORDER = 0x0004;
     public const uint SWP_NOACTIVATE = 0x0010;
     public const uint SWP_SHOWWINDOW = 0x0040;
@@ -283,9 +280,6 @@ public static class NativeMethods
     [DllImport("user32.dll")]
     public static extern IntPtr MonitorFromPoint(POINT pt, uint dwFlags);
 
-    [DllImport("user32.dll")]
-    public static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint dwFlags);
-
     [DllImport("user32.dll", CharSet = CharSet.Auto)]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
@@ -338,6 +332,85 @@ public static class NativeMethods
             // shcore.dll may not be available on older versions
         }
         return (1.0, 1.0);
+    }
+
+    private const uint PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
+    private const uint TOKEN_QUERY = 0x0008;
+    private const int TokenElevation = 20;
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern IntPtr OpenProcess(uint dwDesiredAccess, [MarshalAs(UnmanagedType.Bool)] bool bInheritHandle, uint dwProcessId);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool CloseHandle(IntPtr hObject);
+
+    [DllImport("advapi32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool OpenProcessToken(IntPtr processHandle, uint desiredAccess, out IntPtr tokenHandle);
+
+    [DllImport("advapi32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetTokenInformation(IntPtr tokenHandle, int tokenInformationClass, out int tokenInformation, int tokenInformationLength, out int returnLength);
+
+    private static bool? _isCurrentProcessElevated;
+
+    private static bool? QueryProcessElevation(IntPtr hProcess)
+    {
+        if (!OpenProcessToken(hProcess, TOKEN_QUERY, out IntPtr hToken))
+        {
+            // Access denied on a token we could otherwise open means a higher integrity level
+            return Marshal.GetLastWin32Error() == 5 ? true : null;
+        }
+
+        try
+        {
+            if (GetTokenInformation(hToken, TokenElevation, out int elevated, sizeof(int), out _))
+            {
+                return elevated != 0;
+            }
+            return null;
+        }
+        finally
+        {
+            CloseHandle(hToken);
+        }
+    }
+
+    public static bool IsCurrentProcessElevated()
+    {
+        if (_isCurrentProcessElevated.HasValue) return _isCurrentProcessElevated.Value;
+
+        using var current = System.Diagnostics.Process.GetCurrentProcess();
+        _isCurrentProcessElevated = QueryProcessElevation(current.Handle) ?? false;
+        return _isCurrentProcessElevated.Value;
+    }
+
+    /// <summary>
+    /// True when the process owning <paramref name="hWnd"/> runs with higher privileges than LunaCopy,
+    /// so UIPI blocks both its mouse events and our synthetic input.
+    /// </summary>
+    public static bool IsWindowElevatedRelativeToUs(IntPtr hWnd)
+    {
+        if (hWnd == IntPtr.Zero || IsCurrentProcessElevated()) return false;
+
+        GetWindowThreadProcessId(hWnd, out uint pid);
+        if (pid == 0) return false;
+
+        IntPtr hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid);
+        if (hProcess == IntPtr.Zero)
+        {
+            return Marshal.GetLastWin32Error() == 5;
+        }
+
+        try
+        {
+            return QueryProcessElevation(hProcess) == true;
+        }
+        finally
+        {
+            CloseHandle(hProcess);
+        }
     }
 
     public static bool IsModifierPressed()

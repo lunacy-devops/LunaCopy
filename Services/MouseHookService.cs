@@ -33,6 +33,7 @@ public sealed class MouseHookService : IDisposable
     private DateTime _lastRestartTime = DateTime.MinValue;
     private NativeMethods.POINT _lastWatchdogPos;
     private bool _installErrorLogged;
+    private int _consecutiveRestartFailures;
 
     private string _cachedForegroundProcess = string.Empty;
     private readonly object _processLock = new();
@@ -203,23 +204,15 @@ public sealed class MouseHookService : IDisposable
         }
     }
 
-    private bool IsForegroundProcessElevated(IntPtr hWnd)
+    private static bool IsForegroundProcessElevated(IntPtr hWnd)
     {
-        if (hWnd == IntPtr.Zero) return false;
         try
         {
-            NativeMethods.GetWindowThreadProcessId(hWnd, out uint pid);
-            if (pid == 0) return false;
-
-            using var proc = Process.GetProcessById((int)pid);
-            // If we cannot query modules, process is likely elevated
-            _ = proc.MainModule;
-            return false;
+            return NativeMethods.IsWindowElevatedRelativeToUs(hWnd);
         }
         catch
         {
-            // Access denied indicates elevated process
-            return true;
+            return false;
         }
     }
 
@@ -232,10 +225,20 @@ public sealed class MouseHookService : IDisposable
                 // 1. Thread or handle death
                 if (_hookThread == null || !_hookThread.IsAlive || _mouseHookId == IntPtr.Zero)
                 {
+                    // Back off if installation keeps failing: 15 s, 30 s, 60 s ... capped at 5 min
+                    var backoff = TimeSpan.FromSeconds(Math.Min(300, 15 * Math.Pow(2, Math.Min(_consecutiveRestartFailures, 5))));
+                    if ((DateTime.UtcNow - _lastRestartTime) < backoff)
+                    {
+                        return;
+                    }
+
                     Logger.Warn("Watchdog detected inactive hook thread. Restarting...");
                     RestartHookThread();
+                    _consecutiveRestartFailures = _mouseHookId == IntPtr.Zero ? _consecutiveRestartFailures + 1 : 0;
                     return;
                 }
+
+                _consecutiveRestartFailures = 0;
 
                 // Rate-limit restarts (cooldown at least 2 minutes)
                 if ((DateTime.UtcNow - _lastRestartTime) < TimeSpan.FromMinutes(2))
