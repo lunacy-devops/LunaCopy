@@ -14,11 +14,12 @@
     <NoWarn>$(NoWarn);WFAC010</NoWarn>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <PublishSingleFile>true</PublishSingleFile>
-    <SelfContained>false</SelfContained>
+    <SelfContained>true</SelfContained>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
 
     <!-- Assembly & Package Metadata -->
-    <Version Condition="'$(Version)' == ''">1.2.0</Version>
+    <Version Condition="'$(Version)' == ''">1.2.1</Version>
     <Authors>Denis Getman</Authors>
     <Product>LunaCopy</Product>
     <Description>Lightweight Windows 10/11 system tray utility that automatically copies selected text to the clipboard across all applications.</Description>
