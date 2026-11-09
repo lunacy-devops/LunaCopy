@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
@@ -13,7 +13,7 @@ public partial class SettingsWindow : Window
     {
         InitializeComponent();
         HeaderIconImage.Source = IconGenerator.CreateClipboardCheckDrawingImage(true);
-        VersionText.Text = "v" + (typeof(SettingsWindow).Assembly.GetName().Version?.ToString(3) ?? "1.1.0");
+        VersionText.Text = "v" + (typeof(SettingsWindow).Assembly.GetName().Version?.ToString(3) ?? "1.2.0");
         RefreshAllControls();
 
         PreviewKeyDown += (_, e) =>

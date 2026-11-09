@@ -1,4 +1,4 @@
-﻿<div align="center">
+<div align="center">
 
 # 🌙 LunaCopy
 
@@ -10,6 +10,10 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-22C55E.svg)](LICENSE)
 
 *Read this in [English](README_EN.md).*
+
+<br/>
+
+<img src="docs/settings.png" alt="LunaCopy — Параметры" width="520"/>
 
 </div>
 
@@ -49,7 +53,7 @@
 
 ## 🚀 Быстрый старт
 
-1. Скачайте свежий `LunaCopy.exe` из раздела [Releases](https://github.com/DenisGetman/LunaCopy/releases).
+1. Скачайте свежий `LunaCopy.exe` из раздела [Releases](https://github.com/lunacy-devops/LunaCopy/releases).
 2. Запустите `LunaCopy.exe` — программа появится в системном трее возле часов.
 3. Выделите любой текст в браузере, мессенджере или редакторе — текст мгновенно окажется в буфере!
 
@@ -82,7 +86,7 @@
 
 ```powershell
 # Клонирование репозитория
-git clone https://github.com/DenisGetman/LunaCopy.git
+git clone https://github.com/lunacy-devops/LunaCopy.git
 cd LunaCopy
 
 # Сборка исполняемого файла

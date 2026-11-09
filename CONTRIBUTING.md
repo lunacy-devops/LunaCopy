@@ -6,7 +6,7 @@ Thank you for your interest in improving LunaCopy! We welcome bug reports, featu
 
 1. **Fork and Clone**
    ```bash
-   git clone https://github.com/DenisGetman/LunaCopy.git
+   git clone https://github.com/lunacy-devops/LunaCopy.git
    cd LunaCopy
    ```
 

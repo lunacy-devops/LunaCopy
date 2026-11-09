@@ -1,4 +1,4 @@
-﻿<div align="center">
+<div align="center">
 
 # 🌙 LunaCopy
 
@@ -10,6 +10,10 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-22C55E.svg)](LICENSE)
 
 *Читать на [Русском](README.md).*
+
+<br/>
+
+<img src="docs/settings.png" alt="LunaCopy — Settings" width="520"/>
 
 </div>
 
@@ -48,7 +52,7 @@
 
 ## 🚀 Quick Start
 
-1. Download `LunaCopy.exe` from [Releases](https://github.com/DenisGetman/LunaCopy/releases).
+1. Download `LunaCopy.exe` from [Releases](https://github.com/lunacy-devops/LunaCopy/releases).
 2. Run `LunaCopy.exe` — the blue clipboard icon will appear in your system tray.
 3. Select any text in your browser, code editor, or chat app — it's instantly copied to your clipboard!
 
@@ -74,7 +78,7 @@
 ## 🛠 Building from Source
 
 ```powershell
-git clone https://github.com/DenisGetman/LunaCopy.git
+git clone https://github.com/lunacy-devops/LunaCopy.git
 cd LunaCopy
 dotnet publish LunaCopy.csproj -c Release -r win-x64 -o publish
 ```
