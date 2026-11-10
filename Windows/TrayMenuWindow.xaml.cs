@@ -120,10 +120,10 @@ public partial class TrayMenuWindow : Window
         double menuHDips = ActualHeight > 0 ? ActualHeight : 165;
 
         int menuWPx = (int)Math.Round(menuWDips * scaleX);
-        int menuHPx = (int)Math.Round(menuHDips * scaleY);
+        int menuHeightPx = (int)Math.Round(menuHDips * scaleY);
 
         int targetX = pt.X - menuWPx + (int)Math.Round(12 * scaleX);
-        int targetY = pt.Y - menuHPx - (int)Math.Round(4 * scaleY);
+        int targetY = pt.Y - menuHeightPx - (int)Math.Round(4 * scaleY);
 
         if (hasMonitorInfo)
         {
@@ -131,7 +131,7 @@ public partial class TrayMenuWindow : Window
             if (targetX + menuWPx > mi.rcWork.Right - 4) targetX = mi.rcWork.Right - menuWPx - 4;
 
             if (targetY < mi.rcWork.Top + 4) targetY = pt.Y + (int)Math.Round(8 * scaleY);
-            if (targetY + menuHPx > mi.rcWork.Bottom - 4) targetY = mi.rcWork.Bottom - menuHPx - 4;
+            if (targetY + menuHeightPx > mi.rcWork.Bottom - 4) targetY = mi.rcWork.Bottom - menuHeightPx - 4;
         }
 
         NativeMethods.SetWindowPos(

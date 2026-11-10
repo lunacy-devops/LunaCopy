@@ -19,6 +19,7 @@
 
 <p align="center">
   <a href="#why-lunacopy">Why LunaCopy</a> ·
+  <a href="#advantages">Advantages</a> ·
   <a href="#features">Features</a> ·
   <a href="#installation-and-usage">Installation and usage</a> ·
   <a href="#building-from-source">Building</a> ·
@@ -43,12 +44,24 @@
 - **Fullscreen awareness.** Queries `SHQueryUserNotificationState` to detect fullscreen Direct3D games and presentation mode, pausing capture automatically until you return to the desktop.
 - **Non-intrusive feedback.** The optional floating "Copied" toast uses `WS_EX_NOACTIVATE | WS_EX_TRANSPARENT` so it never steals focus or interrupts typing. The optional soft click sound is synthesized in memory with trailing silence to prevent Bluetooth audio clipping.
 
+## Advantages
+
+| Advantage | What it means for you |
+|---|---|
+| **Single file, zero install** | Self-contained `LunaCopy.exe` — no .NET runtime required, no administrator rights, runs from anywhere including a USB stick |
+| **Invisible footprint** | <1 % CPU when idle: event-driven design (`SetWinEventHook` instead of process polling), mouse hook on a dedicated background thread, UIA queries capped by a hard 200 ms timeout |
+| **Self-healing** | A watchdog detects Windows silently dropping the global hook and reinstalls it automatically — the utility keeps working for weeks without a restart |
+| **Clipboard respect** | The clipboard is snapshotted before fallback copying and fully restored (images, files, rich text) if the selection turns out to be empty — your data is never clobbered |
+| **Private by default** | Password fields are rejected before extraction; copied text is never written to the log — only character counts and process names |
+| **Tested stability** | 44 unit tests in CI (gestures, configuration, localization parity), atomic config writes with automatic backup and fallback to defaults when corrupted |
+| **One-click rollback** | The `rollback/v1.2.1` branch holds the previous release code — to go back, just rebuild it with a single `dotnet publish` command |
+
 ## Features
 
 | Area | Details |
 |---|---|
 | **Mouse gestures** | Drag-select (`> 5 px`) and double-click word selection; false-positive filtering via `WM_NCHITTEST` and `IDC_IBEAM` cursor verification |
-| **Text extraction** | Two-tier pipeline: native `UIAutomationClient` (`TextPattern` with a 120 ms timeout) and `SendInput` (`Ctrl+C`) fallback |
+| **Text extraction** | Two-tier pipeline: native `UIAutomationClient` (`TextPattern` with a 200 ms timeout) and `SendInput` (`Ctrl+C`) fallback |
 | **Clipboard preservation** | Captures the current `DataObject` prior to fallback `Ctrl+C` and restores it if no text was copied |
 | **Safety** | Skips `IsPassword` fields; blocks synthetic `Ctrl+C` in terminal emulators and shells; suppresses consecutive duplicate copies |
 | **Exclusions** | Automatic suspension in fullscreen 3D applications; per-process blocklist with one-click exclusion from the tray menu |
@@ -77,7 +90,7 @@ The compiled binary is written to `publish/LunaCopy.exe`.
 
 ## Logs and Windows notes
 
-Configuration is saved atomically via a temporary file to `%AppData%\LunaCopy\config.json` (or next to the executable in portable setups). Diagnostic events and errors are written to `%AppData%\LunaCopy\LunaCopy.log` and rotated automatically at 1 MB. Copied text is never written to the log file; only character counts and process names are recorded.
+Configuration is saved atomically via a temporary file to `%AppData%\LunaCopy\config.json` (or next to the executable in portable setups). Diagnostic events and errors are written to `%AppData%\LunaCopy\LunaCopy.log` and rotated automatically at 2 MB. Copied text is never written to the log file; only character counts and process names are recorded.
 
 **Elevated windows (UIPI).** Windows User Interface Privilege Isolation prevents a standard user-level process from inspecting or sending input to windows running as Administrator. To copy text from elevated applications such as Task Manager or Registry Editor, launch `LunaCopy.exe` as Administrator.
 

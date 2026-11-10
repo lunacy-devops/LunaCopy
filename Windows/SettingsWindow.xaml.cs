@@ -13,7 +13,7 @@ public partial class SettingsWindow : Window
     {
         InitializeComponent();
         HeaderIconImage.Source = IconGenerator.CreateClipboardCheckDrawingImage(true);
-        VersionText.Text = "v" + (typeof(SettingsWindow).Assembly.GetName().Version?.ToString(3) ?? "1.2.0");
+        VersionText.Text = "v" + (typeof(SettingsWindow).Assembly.GetName().Version?.ToString(3) ?? "dev");
         RefreshAllControls();
 
         PreviewKeyDown += (_, e) =>

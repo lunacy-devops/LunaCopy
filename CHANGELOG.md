@@ -5,6 +5,20 @@ All notable changes to the **LunaCopy** project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.2] - 2026-11-10
+
+### Fixed
+- Synchronized product version across all sources: `LunaCopy.csproj` (1.2.1 → 1.2.2), `app.manifest` (1.1.0.0 → 1.2.2.0), and removed the hardcoded version fallback in the Settings window (now reads the assembly version).
+- `TrayMenuWindow` vertical positioning: renamed misleading `menuHPx` variable to `menuHeightPx` for clarity (behavior unchanged, semantics were correct).
+- Thread-safety of the copy deduplication state in `TextExtractorService`: `_lastCopiedText` / `_lastCopyTimestamp` are now guarded by a dedicated lock, eliminating a possible race between overlapping copy workflows.
+
+### Changed
+- README / README_EN: corrected documented values to match the code — UIA extraction timeout (120 ms → 200 ms) and log rotation threshold (1 MB → 2 MB).
+- README / README_EN: added an "Advantages" / «Преимущества» section highlighting single-file deployment, self-healing hook watchdog, clipboard preservation, and privacy guarantees.
+
+### Note on rollback
+- The `rollback/v1.2.1` branch contains the exact source of the previous release for instant one-command rebuilds.
+
 ## [1.2.0] - 2026-11-09
 
 ### Added

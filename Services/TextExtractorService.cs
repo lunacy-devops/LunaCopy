@@ -85,6 +85,7 @@ public sealed class ClipboardBackup
 
 public static class TextExtractorService
 {
+    private static readonly object DedupeLock = new();
     private static string _lastCopiedText = string.Empty;
     private static DateTime _lastCopyTimestamp = DateTime.MinValue;
 
@@ -233,19 +234,21 @@ public static class TextExtractorService
 
     private static bool IsDuplicateRecentCopy(string text)
     {
-        var now = DateTime.UtcNow;
-        if (string.Equals(text, _lastCopiedText, StringComparison.Ordinal) &&
-            (now - _lastCopyTimestamp).TotalMilliseconds < 1500)
+        lock (DedupeLock)
         {
-            return true;
+            var now = DateTime.UtcNow;
+            return string.Equals(text, _lastCopiedText, StringComparison.Ordinal) &&
+                   (now - _lastCopyTimestamp).TotalMilliseconds < 1500;
         }
-        return false;
     }
 
     private static void RecordSuccessfulCopy(string text)
     {
-        _lastCopiedText = text;
-        _lastCopyTimestamp = DateTime.UtcNow;
+        lock (DedupeLock)
+        {
+            _lastCopiedText = text;
+            _lastCopyTimestamp = DateTime.UtcNow;
+        }
     }
 
     private static (UiaExtractionStatus Status, string? Text) TryGetSelectedTextViaUia(CancellationToken ct)
