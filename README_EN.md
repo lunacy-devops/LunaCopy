@@ -70,7 +70,7 @@
 
 ## Installation and usage
 
-Requires 64-bit Windows 10 (version 1809 or newer) or Windows 11 and the [.NET 8.0 Desktop Runtime (x64)](https://dotnet.microsoft.com/download/dotnet/8.0).
+Requires only 64-bit Windows 10 (version 1809 or newer) or Windows 11 — there is no need to install the [.NET 8.0 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0): the runtime is already embedded in the self-contained single-file executable.
 
 Download `LunaCopy.exe` from [Releases](https://github.com/lunacy-devops/LunaCopy/releases) and run it. The application starts in the system tray and enforces a single instance via a global mutex.
 

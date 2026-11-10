@@ -70,7 +70,7 @@
 
 ## Установка и запуск
 
-Для работы требуется 64-разрядная Windows 10 (1809 или новее) либо Windows 11 и установленный пакет [.NET 8.0 Desktop Runtime (x64)](https://dotnet.microsoft.com/download/dotnet/8.0).
+Для работы требуется только 64-разрядная Windows 10 (1809 или новее) либо Windows 11 — устанавливать [.NET 8.0 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) **не нужно**: рантайм уже встроен в самодостаточный исполняемый файл (self-contained single-file).
 
 Скачайте `LunaCopy.exe` со страницы [Releases](https://github.com/lunacy-devops/LunaCopy/releases) и запустите файл. Программа работает в фоновом режиме и размещает иконку в системном трее. Повторный запуск второго экземпляра блокируется глобальным мьютексом.
 

@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - README / README_EN: corrected documented values to match the code — UIA extraction timeout (120 ms → 200 ms) and log rotation threshold (1 MB → 2 MB).
+- README / README_EN: installation section no longer requires the .NET 8.0 Desktop Runtime — the runtime is already embedded in the self-contained single-file `LunaCopy.exe`.
 - README / README_EN: added an "Advantages" / «Преимущества» section highlighting single-file deployment, self-healing hook watchdog, clipboard preservation, and privacy guarantees.
 
 ### Note on rollback
